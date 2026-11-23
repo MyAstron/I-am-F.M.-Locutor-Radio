@@ -1,42 +1,26 @@
 # Manual de Usuario: I AM-FM Locutor Radio
 
-## 1. Introduccion y Requisitos
+## 1. Puesta en Marcha y Vinculacion Musical
 
-I AM-FM: Locutor Radio es un companero de viaje y copiloto sonoro para conductores y oyentes de radio. Se conecta de forma transparente a cualquier aplicacion de musica activa en tu telefono (como Spotify, YouTube Music, Apple Music o reproductores locales) para darte controles de transporte inmediato estilo Waze y un locutor automatico que anuncia que cancion termino y que hora exacta es.
+1. **Permiso de notificaciones:** Abre la aplicacion y concede el permiso en la pestana **Servicio** para permitir la lectura del reproductor activo.
+2. **Vincular servicio de musica:** En la tarjeta de reproductor de la **Cabina**, toca en el chip **VINCULAR** o en el nombre de la app para seleccionar tu reproductor de preferencia (Spotify, YouTube Music, Apple Music, etc.) o dejar activa la **Deteccion Automatica**. Si la app esta cerrada, pulsa *Abrir reproductor en telefono*.
+3. **Controles Waze funcionales:** Ahora los botones **Anterior**, **Reproducir/Pausar** y **Siguiente** responderan directamente sobre tu reproductor de musica.
 
-### Requisitos Previos
-1. Dispositivo Android con version 8.0 o superior (Android 26+).
-2. Permiso de acceso a notificaciones habilitado en Ajustes del Sistema para permitir la lectura del reproductor multimedia.
-3. Al menos una aplicacion de reproduccion de audio instalada y en uso.
+## 2. Menu de Frases (CRUD)
 
-## 2. Puesta en Marcha
+En la nueva pestana **Frases**:
+- **Crear frase (+):** Pulsa el boton flotante inferior para anadir una nueva plantilla de locutor. Puedes tocar las etiquetas rapidas `+ {cancion}`, `+ {artista}`, `+ {hora}` o `+ {clima}` para armar tu frase personalizada.
+- **Editar y Eliminar:** Usa los iconos de lapiz o papelera en cada tarjeta para modificar el texto o borrar frases.
+- **Interruptor de frase:** Activa o desactiva frases individuales segun tu preferencia.
+- **Rotacion inteligente:** La aplicacion nunca repetira la misma frase en dos horas consecutivas.
 
-1. **Abrir la aplicacion:** Al abrir por primera vez la app, pulsa en la pestana **Servicio** y selecciona **Abrir Ajustes de Acceso a Notificaciones**. Concede el permiso a **I AM-FM**.
-2. **Permiso de Notificaciones:** En Android 13 o superior, acepta la solicitud de mostrar notificaciones para que el servicio pueda operar en segundo plano.
+## 3. Clima Local Opcional
 
-## 3. Cabina Principal
+En la parte superior de la pestana **Frases**:
+- Enciende el interruptor **Mencion de Clima Local** si deseas que el locutor informe la temperatura y estado del cielo de tu ciudad.
+- La aplicacion te pedira permiso de ubicacion. Si decides no otorgarlo, el locutor continuara funcionando normalmente omitiendo la variable del clima.
 
-- **Barra de Reproduccion Waze:** Muestra la cancion en curso, el artista, la aplicacion origen y la barra de avance. Dispone de tres botones de gran tamano calibrados para conduccion:
-  - **Boton Izquierdo:** Retroceder a la pista anterior.
-  - **Boton Central (Cyan):** Pausar o reanudar la reproduccion.
-  - **Boton Derecho:** Avanzar a la siguiente pista.
-- **Boton Central Maestro de Locutor:**
-  - Pulsa el gran boton circular para encender (**ON**) o silenciar (**MUTED**) las intervenciones del locutor.
-  - Los anillos de ondas reactivas vibraran de forma visual cuando el locutor este transmitiendo.
-- **HUD Bento de Telemetria:**
-  - **Canal de Musica:** Refleja el estado de atenuacion (Fade / Ducking) del audio de fondo.
-  - **Proximo Anuncio:** Cuenta regresiva con la hora en punto del siguiente boletin.
-- **Simulador de Cabina:** Pulsa **Probar locucion y fade ahora** para verificar el funcionamiento sonoro y visual sin esperar al cambio de hora.
+## 4. Cabina y Ajustes
 
-## 4. Configuracion y Ajustes
-
-En la pestana **Ajustes** puedes personalizar:
-- **Estilo de Locutor:** Selecciona entre Radio DJ Dinamico, Locutor FM Clasico o Voz Conductor Calma.
-- **Tono y Velocidad:** Deslizadores para modular la gravedad o agudeza de la voz y su ritmo.
-- **Plantilla de Locucion:** Personaliza las frases del locutor insertando etiquetas como `{cancion}`, `{artista}` y `{hora en punto}`.
-- **Tiempos de Fade:** Configura el tiempo de bajada (Fade Down), tiempo de retorno (Fade Up) y nivel de volumen de fondo (Ducking).
-
-## 5. Historial y Diagnostico
-
-- **Historial:** Revisa la lista cronologica de locuciones emitidas con detalles de la cancion anunciada y el texto exacto generado.
-- **Servicio:** Monitoriza el tiempo de actividad del servicio en segundo plano, consumo de memoria y estado de permisos del sistema.
+- **Cabina:** Disfruta de la barra estilo Waze, el boton maestro con ondas reactivas y el simulador de prueba inmediata.
+- **Ajustes:** Modifica el estilo de locutor, tono, velocidad de voz y duracion de los fundidos de audio (Fade Down y Fade Up).

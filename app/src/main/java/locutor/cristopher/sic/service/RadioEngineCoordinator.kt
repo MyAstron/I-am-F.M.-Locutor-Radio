@@ -11,12 +11,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import locutor.cristopher.sic.data.audio.AudioFadeController
 import locutor.cristopher.sic.data.media.MediaSessionRepository
+import locutor.cristopher.sic.data.phrases.PhraseCrudRepository
+import locutor.cristopher.sic.data.phrases.RadioPhrase
 import locutor.cristopher.sic.data.preferences.RadioPreferences
 import locutor.cristopher.sic.data.voice.AndroidTtsVoiceEngine
 import locutor.cristopher.sic.data.voice.VoiceEngine
+import locutor.cristopher.sic.data.weather.LocalWeatherProvider
 import locutor.cristopher.sic.domain.model.AnnouncementLog
 import locutor.cristopher.sic.domain.model.AnnouncerConfig
-import locutor.cristopher.sic.domain.model.AudioWaveState
 import locutor.cristopher.sic.domain.model.TrackInfo
 import locutor.cristopher.sic.domain.usecase.EvaluateHourlyAnnouncementUseCase
 import locutor.cristopher.sic.domain.usecase.GenerateRadioScriptUseCase
@@ -32,6 +34,8 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
     val mediaRepository = MediaSessionRepository.getInstance(context)
     val fadeController = AudioFadeController(context)
     val voiceEngine: VoiceEngine = AndroidTtsVoiceEngine(context, scope)
+    val phraseRepository = PhraseCrudRepository(context)
+    val weatherProvider = LocalWeatherProvider(context)
 
     private val evaluateHourlyUseCase = EvaluateHourlyAnnouncementUseCase()
     private val scriptUseCase = GenerateRadioScriptUseCase()
@@ -98,10 +102,16 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
         _isExecutingAnnouncement.value = true
 
         val config = preferences.config.value
+
+        // Selección de frase con rotación anti-repetición desde el CRUD
+        val selectedPhrase = phraseRepository.getNextNonRepeatingPhrase()
+        val weatherText = weatherProvider.getWeatherReport()
+
         val script = scriptUseCase.execute(
-            template = config.scriptTemplate,
+            template = selectedPhrase.template,
             trackTitle = trackToAnnounce.title,
-            artist = trackToAnnounce.artist
+            artist = trackToAnnounce.artist,
+            weatherReport = weatherText
         )
 
         val calendar = Calendar.getInstance()
@@ -153,9 +163,6 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
         }
     }
 
-    /**
-     * Prueba instantánea del simulador de cabina sin esperar la hora en punto.
-     */
     fun triggerSimulationNow() {
         scope.launch {
             val track = mediaRepository.currentTrack.value

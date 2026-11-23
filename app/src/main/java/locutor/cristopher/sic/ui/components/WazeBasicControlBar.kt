@@ -1,6 +1,7 @@
 package locutor.cristopher.sic.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
@@ -52,6 +54,7 @@ fun WazeBasicControlBar(
     onPrevious: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
+    onOpenServiceSelector: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -64,7 +67,7 @@ fun WazeBasicControlBar(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Header Bar: App Source & Status
+            // Header Bar: App Source & Status + Botón Vincular
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -72,7 +75,11 @@ fun WazeBasicControlBar(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onOpenServiceSelector() }
+                        .padding(vertical = 2.dp, horizontal = 4.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -96,15 +103,29 @@ fun WazeBasicControlBar(
                     )
                     Box(
                         modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(CockpitOnSurfaceVariant)
-                    )
-                    Text(
-                        text = "Externo",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = CockpitOnSurfaceVariant
-                    )
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(CockpitPrimaryContainer.copy(alpha = 0.2f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Link,
+                                contentDescription = null,
+                                tint = CockpitPrimaryContainer,
+                                modifier = Modifier.size(10.dp)
+                            )
+                            Text(
+                                text = "VINCULAR",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = CockpitPrimaryContainer,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
 
                 // Status Chip
@@ -204,7 +225,7 @@ fun WazeBasicControlBar(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Waze-Style Playback Knobs: Previous, Master Play/Pause, Next (NO playlist)
+            // Waze-Style Playback Knobs: Previous, Master Play/Pause, Next (Sin colas)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

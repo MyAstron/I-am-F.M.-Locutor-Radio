@@ -1,6 +1,5 @@
 package locutor.cristopher.sic.domain.usecase
 
-import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
@@ -10,6 +9,7 @@ class GenerateRadioScriptUseCase {
         template: String,
         trackTitle: String,
         artist: String,
+        weatherReport: String = "",
         calendar: Calendar = Calendar.getInstance()
     ): String {
         val hour24 = calendar.get(Calendar.HOUR_OF_DAY)
@@ -31,6 +31,9 @@ class GenerateRadioScriptUseCase {
             .replace("{artista}", cleanArtist)
             .replace("{hora en punto}", formattedHourVoice)
             .replace("{hora}", formattedHourVoice)
+            .replace("{clima}", weatherReport)
+            .replace("  ", " ")
+            .trim()
     }
 
     fun getNextBroadcastTimeLabel(calendar: Calendar = Calendar.getInstance()): String {

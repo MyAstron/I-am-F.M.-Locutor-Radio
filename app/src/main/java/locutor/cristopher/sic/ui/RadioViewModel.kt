@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import locutor.cristopher.sic.data.media.MusicServiceOption
+import locutor.cristopher.sic.data.phrases.RadioPhrase
 import locutor.cristopher.sic.domain.model.AnnouncementLog
 import locutor.cristopher.sic.domain.model.AnnouncerConfig
 import locutor.cristopher.sic.domain.model.AudioWaveState
@@ -27,6 +29,11 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
     val historyLogs: StateFlow<List<AnnouncementLog>> = coordinator.historyLogs
     val isExecutingAnnouncement: StateFlow<Boolean> = coordinator.isExecutingAnnouncement
     val duckingActive: StateFlow<Boolean> = coordinator.duckingActive
+
+    val phrases: StateFlow<List<RadioPhrase>> = coordinator.phraseRepository.phrases
+    val selectedService: StateFlow<String> = coordinator.mediaRepository.musicLinker.selectedService
+    val availableServices: List<MusicServiceOption> = coordinator.mediaRepository.musicLinker.availableServices
+    val isWeatherEnabled: StateFlow<Boolean> = coordinator.weatherProvider.isWeatherEnabled
 
     private val _nextBroadcastLabel = MutableStateFlow("14:00")
     val nextBroadcastLabel: StateFlow<String> = _nextBroadcastLabel.asStateFlow()
@@ -49,6 +56,7 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Controles multimedia estilo Waze
     fun onPreviousClicked() {
         coordinator.mediaRepository.skipToPrevious()
     }
@@ -61,6 +69,18 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
         coordinator.mediaRepository.skipToNext()
     }
 
+    // Selección de servicio de música
+    fun selectMusicService(packageName: String) {
+        coordinator.mediaRepository.musicLinker.selectService(packageName)
+        val controllers = coordinator.mediaRepository
+        // Si hay una sesión previa del listener se re-filtra
+    }
+
+    fun launchMusicApp(): Boolean {
+        return coordinator.mediaRepository.musicLinker.launchMusicApp()
+    }
+
+    // Botón maestro y simulación
     fun toggleAnnouncer() {
         coordinator.toggleAnnouncer()
     }
@@ -71,6 +91,32 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateConfig(newConfig: AnnouncerConfig) {
         coordinator.updateConfig(newConfig)
+    }
+
+    // CRUD de frases
+    fun addPhrase(template: String) {
+        coordinator.phraseRepository.addPhrase(template)
+    }
+
+    fun updatePhrase(id: String, template: String, isActive: Boolean) {
+        coordinator.phraseRepository.updatePhrase(id, template, isActive)
+    }
+
+    fun togglePhraseActive(id: String) {
+        coordinator.phraseRepository.togglePhraseActive(id)
+    }
+
+    fun deletePhrase(id: String) {
+        coordinator.phraseRepository.deletePhrase(id)
+    }
+
+    // Clima local
+    fun setWeatherEnabled(enabled: Boolean) {
+        coordinator.weatherProvider.setWeatherEnabled(enabled)
+    }
+
+    fun hasLocationPermission(): Boolean {
+        return coordinator.weatherProvider.hasLocationPermission()
     }
 
     fun testVoiceSpeech(sampleText: String) {

@@ -1,6 +1,5 @@
 package locutor.cristopher.sic.data.media
 
-import android.content.ComponentName
 import android.content.Context
 import android.media.MediaMetadata
 import android.media.session.MediaController
@@ -9,6 +8,7 @@ import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.KeyEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,19 +19,21 @@ class MediaSessionRepository private constructor(private val context: Context) {
     private val mediaSessionManager =
         context.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
 
+    val musicLinker = MusicServiceLinker(context)
+
     private var activeController: MediaController? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private val _currentTrack = MutableStateFlow(
         TrackInfo(
-            title = "Blinding Lights",
-            artist = "The Weeknd · After Hours",
-            album = "After Hours",
-            packageName = "com.spotify.music",
-            appName = "Spotify",
-            isPlaying = true,
-            durationMs = 200000L,
-            positionMs = 192000L
+            title = "Sin reproducción activa",
+            artist = "Abre tu música o pulsa Vincular Servicio",
+            album = "",
+            packageName = "",
+            appName = "Sistema Android",
+            isPlaying = false,
+            durationMs = 0L,
+            positionMs = 0L
         )
     )
     val currentTrack: StateFlow<TrackInfo> = _currentTrack.asStateFlow()
@@ -61,18 +63,34 @@ class MediaSessionRepository private constructor(private val context: Context) {
     }
 
     fun updateActiveSessions(controllers: List<MediaController>) {
-        val newController = controllers.firstOrNull { controller ->
-            val pkg = controller.packageName ?: ""
-            // Excluir la propia app para no escucharse a sí misma
-            pkg != context.packageName && (controller.playbackState?.state == PlaybackState.STATE_PLAYING ||
-                    controller.playbackState?.state == PlaybackState.STATE_PAUSED)
-        } ?: controllers.firstOrNull { it.packageName != context.packageName }
+        val selectedPkg = musicLinker.selectedService.value
+        val isAuto = musicLinker.isAutoDetect()
 
-        if (newController != null && newController != activeController) {
-            activeController?.unregisterCallback(controllerCallback)
-            activeController = newController
-            activeController?.registerCallback(controllerCallback, mainHandler)
+        val matchingController = if (!isAuto) {
+            controllers.firstOrNull { it.packageName == selectedPkg }
+        } else {
+            controllers.firstOrNull { controller ->
+                val pkg = controller.packageName ?: ""
+                pkg != context.packageName && (
+                        controller.playbackState?.state == PlaybackState.STATE_PLAYING ||
+                                controller.playbackState?.state == PlaybackState.STATE_PAUSED
+                        )
+            } ?: controllers.firstOrNull { it.packageName != context.packageName }
+        }
+
+        if (matchingController != null) {
+            if (activeController != matchingController) {
+                activeController?.unregisterCallback(controllerCallback)
+                activeController = matchingController
+                activeController?.registerCallback(controllerCallback, mainHandler)
+            }
             updateTrackFromMetadata(activeController?.metadata, activeController?.playbackState)
+        } else if (!isAuto) {
+            val opt = musicLinker.getSelectedServiceOption()
+            _currentTrack.value = _currentTrack.value.copy(
+                packageName = opt.packageName,
+                appName = opt.name
+            )
         }
     }
 
@@ -121,36 +139,54 @@ class MediaSessionRepository private constructor(private val context: Context) {
     }
 
     /*
-     * Controles básicos estilo Waze (sin lista de reproducción ni colas)
+     * Controles funcionales con doble estrategia:
+     * 1. MediaController.transportControls
+     * 2. Fallback de evento directo AudioManager.dispatchMediaKeyEvent
      */
     fun skipToPrevious() {
         try {
-            activeController?.transportControls?.skipToPrevious()
+            if (activeController != null) {
+                activeController?.transportControls?.skipToPrevious()
+            } else {
+                musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+            }
         } catch (e: Exception) {
-            Log.e("MediaSessionRepository", "Error skipToPrevious", e)
+            musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+            Log.e("MediaSessionRepository", "Fallback skipToPrevious", e)
         }
     }
 
     fun playPause() {
         try {
             val isPlaying = _currentTrack.value.isPlaying
-            if (isPlaying) {
-                activeController?.transportControls?.pause()
-                _currentTrack.value = _currentTrack.value.copy(isPlaying = false)
+            if (activeController != null) {
+                if (isPlaying) {
+                    activeController?.transportControls?.pause()
+                    _currentTrack.value = _currentTrack.value.copy(isPlaying = false)
+                } else {
+                    activeController?.transportControls?.play()
+                    _currentTrack.value = _currentTrack.value.copy(isPlaying = true)
+                }
             } else {
-                activeController?.transportControls?.play()
-                _currentTrack.value = _currentTrack.value.copy(isPlaying = true)
+                musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                _currentTrack.value = _currentTrack.value.copy(isPlaying = !isPlaying)
             }
         } catch (e: Exception) {
-            Log.e("MediaSessionRepository", "Error playPause", e)
+            musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+            Log.e("MediaSessionRepository", "Fallback playPause", e)
         }
     }
 
     fun skipToNext() {
         try {
-            activeController?.transportControls?.skipToNext()
+            if (activeController != null) {
+                activeController?.transportControls?.skipToNext()
+            } else {
+                musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT)
+            }
         } catch (e: Exception) {
-            Log.e("MediaSessionRepository", "Error skipToNext", e)
+            musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_NEXT)
+            Log.e("MediaSessionRepository", "Fallback skipToNext", e)
         }
     }
 

@@ -1,8 +1,6 @@
 package locutor.cristopher.sic.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,22 +34,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import locutor.cristopher.sic.ui.components.CentralAnnouncerPowerButton
+import locutor.cristopher.sic.ui.components.ServiceSelectorDialog
 import locutor.cristopher.sic.ui.components.WazeBasicControlBar
-import locutor.cristopher.sic.ui.theme.CockpitOnPrimaryContainer
 import locutor.cristopher.sic.ui.theme.CockpitOnSurface
 import locutor.cristopher.sic.ui.theme.CockpitOnSurfaceVariant
 import locutor.cristopher.sic.ui.theme.CockpitPrimary
 import locutor.cristopher.sic.ui.theme.CockpitPrimaryContainer
 import locutor.cristopher.sic.ui.theme.CockpitSurface
-import locutor.cristopher.sic.ui.theme.CockpitSurfaceBright
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainer
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHigh
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHighest
@@ -72,8 +71,24 @@ fun RadioMainScreen(
     val isDucking by viewModel.duckingActive.collectAsState()
     val nextHourLabel by viewModel.nextBroadcastLabel.collectAsState()
     val countdownSec by viewModel.countdownSeconds.collectAsState()
+    val selectedService by viewModel.selectedService.collectAsState()
 
+    var showServiceSelectorDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
+
+    if (showServiceSelectorDialog) {
+        ServiceSelectorDialog(
+            availableServices = viewModel.availableServices,
+            selectedPackage = selectedService,
+            onSelectService = { pkg ->
+                viewModel.selectMusicService(pkg)
+            },
+            onLaunchApp = {
+                viewModel.launchMusicApp()
+            },
+            onDismiss = { showServiceSelectorDialog = false }
+        )
+    }
 
     Column(
         modifier = modifier
@@ -163,12 +178,13 @@ fun RadioMainScreen(
             }
         }
 
-        // 2. Waze-Style Floating External Music Player Card
+        // 2. Waze-Style Floating External Music Player Card con selector de servicio
         WazeBasicControlBar(
             trackInfo = currentTrack,
             onPrevious = { viewModel.onPreviousClicked() },
             onPlayPause = { viewModel.onPlayPauseClicked() },
-            onNext = { viewModel.onNextClicked() }
+            onNext = { viewModel.onNextClicked() },
+            onOpenServiceSelector = { showServiceSelectorDialog = true }
         )
 
         // 3. Center Stage - Tactile Master Locutor Switch Button with Sound Waves

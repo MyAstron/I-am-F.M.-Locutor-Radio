@@ -6,37 +6,35 @@
 [![CLI Workflow](https://img.shields.io/badge/Workflow-CLI-0F172A?style=flat&logo=gnubash&logoColor=white)](#)
 
 ## Descripcion del Proyecto
-I AM-FM: Locutor Radio es una aplicacion nativa para Android (Kotlin y Jetpack Compose) con interfaz estilo Waze que controla de forma basica la reproduccion activa de otras aplicaciones de musica en el dispositivo (sin exigir cuentas Premium ni integrar APIs musicales cerradas) e incorpora un locutor por voz que interviene al terminar una cancion cuando coincide con una hora exacta, aplicando un fade previo para priorizar la locucion.
+I AM-FM: Locutor Radio es una aplicacion nativa para Android (Kotlin y Jetpack Compose) con interfaz estilo Waze que controla de forma basica la reproduccion activa de otras apps de musica en el telefono (sin exigir cuentas Premium ni integrar APIs musicales cerradas) e incorpora un locutor por voz que interviene al terminar una cancion cuando coincide con una hora exacta, aplicando un fade previo para priorizar la locucion.
 
 ## Especificaciones de Uso y Mantenimiento
-- **Plataforma y compilacion:** Android (minSdk 26), desarrollado y compilado mediante flujo CLI con Android SDK y Gradle.
-- **Referencia visual inicial:** Los estados y composiciones visuales base se toman de los archivos HTML ubicados en la carpeta stitch/ del proyecto.
-- **Requerimientos de cuenta:** No requiere suscripciones Premium ni cuentas de terceros; opera directamente sobre la sesion multimedia activa del sistema Android.
-- **Controles soportados:** Unicamente controles basicos estilo Waze (Anterior, Reproducir/Pausar y Siguiente), sin lista de reproduccion ni gestion de colas.
-- **Permisos y servicios:** Requiere acceso a notificaciones (BIND_NOTIFICATION_LISTENER_SERVICE), servicio en primer plano (FOREGROUND_SERVICE_MEDIA_PLAYBACK), notificaciones (POST_NOTIFICATIONS) y gestion de foco y volumen de audio (MODIFY_AUDIO_SETTINGS).
-- **Mantenimiento:** Conservar desacoplados el lector de MediaSession, AudioFadeController, el motor de voz y los componentes visuales de Compose para facilitar adaptaciones ante evoluciones del sistema Android o mejoras de voz sintetica.
+- **Plataforma y compilacion:** Android (minSdk 26), desarrollado y compilado mediante flujo CLI y Android SDK.
+- **Referencia visual e icono:** Basado en los archivos HTML de stitch/ y en el icono oficial stitch/icon.png integrado en los drawables de la aplicacion.
+- **Vinculacion de servicio musical:** Permite seleccionar y vincular la app de musica (Spotify, YouTube Music, Apple Music, Deezer, etc.) o detectar sesiones multimedia activas para operar los controles basicos (Anterior, Reproducir/Pausar y Siguiente, sin lista de reproduccion) con doble respaldo de eventos multimedia directos.
+- **Voz, frases y clima:** Soporta variaciones de voz, catalogo CRUD de frases sin repetir la ultima usada y mencion de clima local unicamente con permiso explicito del usuario.
+- **Mantenimiento:** Mantener desacoplados el enlace de sesion multimedia, el controlador de fade, el repositorio CRUD de frases, el motor de voz y el proveedor opcional de clima.
 
 ## Guia de Usuario y Funcionamiento General
-1. **Inspeccion y arranque:** Abre la aplicacion, concede el permiso de acceso a notificaciones y manten activo el servicio de monitoreo en primer plano.
-2. **Barra estilo Waze:** Visualiza la cancion en curso y la aplicacion de origen (Spotify, YouTube Music, etc.) con los controles basicos de Anterior, Reproducir/Pausar y Siguiente (sin lista de reproduccion).
-3. **Boton central y ondas:** Usa el boton central grande para encender o apagar al locutor (ON / OFF) y observa las ondas reactivas al sonido a su alrededor vibrando segun la actividad de audio y locucion.
-4. **Fade y anuncio de hora exacta:** Cuando concluye una cancion y la hora esta en punto (sin haberse anunciado previamente en esa misma hora), la aplicacion aplica una atenuacion (fade out) para priorizar la voz del locutor, anuncia la cancion terminada y la hora exacta, y restaura el volumen (fade in) al concluir.
-5. **Simulador de Cabina:** Permite probar inmediatamente la secuencia completa de atenuacion, sintesis y restauracion de audio sin esperar la hora en punto.
+1. **Permisos y servicio de musica:** Concede acceso a notificaciones y selecciona o vincula tu servicio de musica mediante el dialogo de enlace para habilitar los controles de Anterior, Reproducir/Pausar y Siguiente.
+2. **Boton central y ondas:** Usa el boton central grande para encender o apagar al locutor y observa las ondas reactivas al sonido a su alrededor vibrando durante la reproduccion y la locucion.
+3. **Menu de frases (CRUD) y variaciones de voz:** Crea, edita, consulta o elimina frases personalizadas con etiquetas dinamicas ({cancion}, {artista}, {hora}, {clima}) y garantiza una rotacion sin repeticion consecutiva.
+4. **Clima local opcional y fade:** Si otorgas permiso para clima local, el locutor puede incluirlo en el reporte; al cerrar una cancion en hora exacta, aplica fade previo para priorizar su voz y restaura el audio al terminar.
 
 ## Implementacion Tecnica
-- **Traduccion visual desde stitch/:** Los archivos HTML en stitch/ definen la estructura visual y estados de referencia traducidos fielmente a Jetpack Compose (WazeBasicControlBar, CentralAnnouncerPowerButton, SoundWaveRing, Bento HUD y simulador).
-- **Sesiones multimedia:** MediaMonitorNotificationListener y MediaSessionRepository observan MediaSessionManager para obtener metadatos, identificar la aplicacion de origen y ejecutar comandos de transporte basico.
-- **Priorizacion de voz con fade:** AudioFadeController aplica atenuacion progresiva y foco transitorio antes y despues de la locucion mediante AudioManager y AudioFocusRequest.
-- **Evaluacion al cierre de pista:** Al cambiar de cancion, EvaluateHourlyAnnouncementUseCase valida la hora actual contra la hora exacta y el registro de la ultima hora anunciada para evitar duplicidad.
-- **Sintesis de voz y ondas sonoras:** AndroidTtsVoiceEngine gestiona el motor TextToSpeech y modula dinamicamente el estado de intensidad en AudioWaveState para retroalimentar la interfaz de usuario.
+- **Enlace y control de sesiones:** MusicServiceLinker y MediaSessionRepository gestionan la app musical seleccionada y observan MediaSessionManager para despachar comandos basicos, con respaldo de eventos directos KeyEvent si no hay controlador enlazado.
+- **Priorizacion por fade:** AudioFadeController ejecuta fade out / fade in y foco de audio antes y despues de la locucion mediante AudioManager.
+- **CRUD y rotacion de frases:** PhraseCrudRepository almacena las frases del usuario y selecciona una distinta a la anterior (lastUsedPhraseId), integrando variables dinamicas.
+- **Variaciones de voz y ondas:** AndroidTtsVoiceEngine gestiona el sintetizador de voz y emite niveles continuos de modulacion para animar los anillos de SoundWaveRing.
+- **Clima local condicionado a permiso:** LocalWeatherProvider evalua los permisos de localizacion antes de consultar las condiciones meteorologicas, omitiendo limpiamente la variable si el permiso no esta concedido.
 
 ## Manual de Desarrollo
 Pendiente de redactar al finalizar todas las fases del proyecto.
 
 ### Cambio Principal de Esta Version (Evaluacion Progresiva)
-- **Que era:** Una propuesta centrada en colas o listas de reproduccion entre plataformas o pantallas sin priorizacion de voz con fade ni referencia visual HTML en stitch/.
-- **Que es:** Una aplicacion nativa Android en Kotlin y Jetpack Compose con referencia visual en los HTML de stitch/, control basico estilo Waze (Anterior, Reproducir/Pausar, Siguiente, sin lista de reproduccion), boton central grande con ondas reactivas al sonido, fade previo para priorizar la voz al anunciar la hora exacta al terminar una cancion, arquitectura desacoplada por capas y documentacion sin emojis con badges de GitHub.
-- **Que sera:** En la siguiente fase, integracion de almacenamiento local Room para persistencia historica extendida y conexion opcional con modelos de lenguaje para enriquecer el guion del locutor con contexto meteorologico o vial.
+- **Que era:** Una version donde el control multimedia pedia permiso de notificaciones pero no vinculaba explicitamente el servicio de musica ni habilitaba el control efectivo, sin icono stitch/icon.png integrado, sin menu CRUD de frases con rotacion ni clima local opcional.
+- **Que es:** Una cabina en Kotlin/Compose con enlace y seleccion de servicio de musica para controles basicos plenamente funcionales (con fallback de teclas multimedia directas), icono stitch/icon.png integrado en la cabina y el manifiesto, menu dedicado con CRUD completo de frases sin repeticion consecutiva, opcion de clima local bajo permiso explicito y fade previo de locutor.
+- **Que sera:** En la siguiente iteracion, soporte de sincronizacion con APIs meteorologicas remotas en tiempo real y conexion con modelos de lenguaje ligeros en el dispositivo para generar comentarios contextuales de trafico o anecdotas musicales.
 
 ## Creditos
 - **Autor:** MyAstron

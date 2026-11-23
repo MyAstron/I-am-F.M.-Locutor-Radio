@@ -7,6 +7,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radio
@@ -41,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +56,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import locutor.cristopher.sic.ui.RadioHistoryScreen
 import locutor.cristopher.sic.ui.RadioMainScreen
+import locutor.cristopher.sic.ui.RadioPhrasesCrudScreen
 import locutor.cristopher.sic.ui.RadioServiceScreen
 import locutor.cristopher.sic.ui.RadioSettingsScreen
 import locutor.cristopher.sic.ui.RadioViewModel
@@ -74,6 +78,12 @@ class MainActivity : ComponentActivity() {
         // Permiso gestionado
     }
 
+    private val requestLocationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        // Permiso de ubicación opcional para clima
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -89,7 +99,16 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             IAmFmTheme {
-                MainAppScaffold()
+                MainAppScaffold(
+                    onRequestLocationPermission = {
+                        requestLocationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                )
             }
         }
     }
@@ -97,6 +116,7 @@ class MainActivity : ComponentActivity() {
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
     object Cabina : Screen("cabina", "Cabina", Icons.Default.Radio)
+    object Frases : Screen("frases", "Frases", Icons.Default.FormatQuote)
     object Ajustes : Screen("ajustes", "Ajustes", Icons.Default.Tune)
     object Historial : Screen("historial", "Historial", Icons.Default.History)
     object Servicio : Screen("servicio", "Servicio", Icons.Default.Bolt)
@@ -104,13 +124,17 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainAppScaffold(viewModel: RadioViewModel = viewModel()) {
+fun MainAppScaffold(
+    viewModel: RadioViewModel = viewModel(),
+    onRequestLocationPermission: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Cabina.route
 
     val screens = listOf(
         Screen.Cabina,
+        Screen.Frases,
         Screen.Ajustes,
         Screen.Historial,
         Screen.Servicio
@@ -126,6 +150,7 @@ fun MainAppScaffold(viewModel: RadioViewModel = viewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        // Ícono oficial de la app desde stitch/icon.png
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -133,11 +158,10 @@ fun MainAppScaffold(viewModel: RadioViewModel = viewModel()) {
                                 .background(CockpitPrimaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Radio,
-                                contentDescription = null,
-                                tint = CockpitSurface,
-                                modifier = Modifier.size(22.dp)
+                            Image(
+                                painter = painterResource(id = R.drawable.app_icon),
+                                contentDescription = "Logo I AM-FM",
+                                modifier = Modifier.size(36.dp)
                             )
                         }
                         Column {
@@ -235,7 +259,7 @@ fun MainAppScaffold(viewModel: RadioViewModel = viewModel()) {
                             Text(
                                 text = screen.title.uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 10.sp
+                                fontSize = 9.sp
                             )
                         },
                         selected = isSelected,
@@ -274,6 +298,9 @@ fun MainAppScaffold(viewModel: RadioViewModel = viewModel()) {
             ) {
                 composable(Screen.Cabina.route) {
                     RadioMainScreen(viewModel = viewModel)
+                }
+                composable(Screen.Frases.route) {
+                    RadioPhrasesCrudScreen(viewModel = viewModel)
                 }
                 composable(Screen.Ajustes.route) {
                     RadioSettingsScreen(viewModel = viewModel)

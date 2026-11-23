@@ -2,7 +2,7 @@
 
 ## 1. Arquitectura del Sistema
 
-La aplicacion implementa una arquitectura MVVM combinada con Clean Architecture ligera orientada a servicios en segundo plano en Android.
+La aplicacion implementa una arquitectura MVVM combinada con Clean Architecture ligera orientada a servicios en segundo plano en Android, ahora con enlace directo de reproductores de musica, rotacion de frases y modulo meteorologico opcional.
 
 ```text
 app/src/main/java/locutor/cristopher/sic/
@@ -13,12 +13,18 @@ app/src/main/java/locutor/cristopher/sic/
 │   │   └── AudioFadeController.kt
 │   ├── media/
 │   │   ├── MediaSessionRepository.kt
+│   │   ├── MusicServiceLinker.kt
 │   │   └── PlatformResolver.kt
+│   ├── phrases/
+│   │   ├── RadioPhrase.kt
+│   │   └── PhraseCrudRepository.kt
 │   ├── preferences/
 │   │   └── RadioPreferences.kt
-│   └── voice/
-│       ├── VoiceEngine.kt
-│       └── AndroidTtsVoiceEngine.kt
+│   ├── voice/
+│   │   ├── VoiceEngine.kt
+│   │   └── AndroidTtsVoiceEngine.kt
+│   └── weather/
+│       └── LocalWeatherProvider.kt
 ├── domain/
 │   ├── model/
 │   │   ├── TrackInfo.kt
@@ -39,37 +45,34 @@ app/src/main/java/locutor/cristopher/sic/
     │   └── Type.kt
     ├── components/
     │   ├── WazeBasicControlBar.kt
+    │   ├── ServiceSelectorDialog.kt
     │   ├── CentralAnnouncerPowerButton.kt
     │   └── SoundWaveRing.kt
     ├── RadioViewModel.kt
     ├── RadioMainScreen.kt
+    ├── RadioPhrasesCrudScreen.kt
     ├── RadioSettingsScreen.kt
     ├── RadioHistoryScreen.kt
     └── RadioServiceScreen.kt
 ```
 
-## 2. Modulos Principales
+## 2. Modulos y Correcciones Implementadas
 
-### 2.1 MediaSessionRepository y PlatformResolver
-- **Responsabilidad:** Monitorear el controlador multimedia activo en Android sin depender de APIs de terceros (Spotify API, YouTube API).
-- **Controles basicos tipo Waze:** Expone exclusivamente `skipToPrevious()`, `playPause()` y `skipToNext()`. No expone listas de reproduccion ni colas para evitar sobrecarga y distracciones.
-- **Deteccion de cierre de pista:** Compara `onMetadataChanged` para registrar la cancion que termino (`previousTrack`) y la nueva en curso (`currentTrack`).
+### 2.1 Enlace y Control de Reproduccion (MusicServiceLinker + MediaSessionRepository)
+- **Vinculacion seleccionable:** El usuario puede fijar su reproductor preferido (Spotify, YouTube Music, Apple Music, Deezer, etc.) o activar Deteccion Automatica.
+- **Estrategia dual de comandos:**
+  1. Si `activeController` esta enlazado y disponible, despacha comandos via `transportControls` (`skipToPrevious()`, `play()`/`pause()`, `skipToNext()`).
+  2. Si la sesion aun no se ha enganchado, envia pulsaciones multimedia directas via `AudioManager.dispatchMediaKeyEvent` con `KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE`, `KEYCODE_MEDIA_PREVIOUS` y `KEYCODE_MEDIA_NEXT`.
+- **Apertura de app:** Ofrece un intent directo para lanzar la aplicacion de musica si esta cerrada.
 
-### 2.2 AudioFadeController
-- **Atenuacion (Fade Out):** Reduce gradualmente el volumen del canal `STREAM_MUSIC` en escalones temporizados y solicita foco de audio transitorio (`AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK`).
-- **Restauracion (Fade In):** Al finalizar la locucion, eleva suavemente el volumen al nivel previo y abandona el foco de audio.
+### 2.2 Catalogo CRUD y Rotacion de Frases (PhraseCrudRepository)
+- **Operaciones completas:** Permite Crear, Listar, Actualizar y Eliminar plantillas de locucion.
+- **Variables dinámicas:** Admite `{cancion}`, `{artista}`, `{hora}` y `{clima}`.
+- **Algoritmo Anti-repeticion:** Al seleccionar la siguiente frase para el locutor, excluye la ultima frase empleada (`lastUsedPhraseId`), garantizando que dos emisiones consecutivas nunca sean identicas.
 
-### 2.3 AndroidTtsVoiceEngine
-- **Sintesis por voz:** Implementa `VoiceEngine` mediante `android.speech.tts.TextToSpeech`.
-- **Modulacion de ondas:** Mediante `UtteranceProgressListener` y un flujo continuo en corrutina, actualiza `AudioWaveState.intensity` para que los anillos visuales de Compose vibren al ritmo de la voz.
+### 2.3 Clima Local Opcional bajo Permiso (LocalWeatherProvider)
+- **Privacidad estricta:** Solo se activa si el usuario enciende el switch de clima y otorga el permiso de ubicacion (`ACCESS_FINE_LOCATION` o `ACCESS_COARSE_LOCATION`).
+- **Degradacion limpia:** Si el permiso no esta concedido, la etiqueta `{clima}` se elimina de forma limpia sin generar errores ni silencios bruscos.
 
-### 2.4 RadioEngineCoordinator y Servicios Android
-- `MediaMonitorNotificationListener`: Servicio `NotificationListenerService` que accede a `MediaSessionManager.addOnActiveSessionsChangedListener` para recibir sesiones multimedia del sistema.
-- `RadioAnnouncerForegroundService`: Servicio persistente con tipo `mediaPlayback` y canal de notificaciones prioritario, permitiendo operar con pantalla apagada o en conduccion.
-- `RadioEngineCoordinator`: Singleton coordinador que enlaza el repositorio multimedia, el evaluador de hora exacta, el atenuador de audio y el motor de voz.
-
-## 3. Requerimientos de Compilacion
-- Android SDK Build Tools (API 36)
-- Java 21 / OpenJDK
-- Min SDK: 26 (Android 8.0 Oreo)
-- Target SDK: 36
+### 2.4 Integracion de Icono y Assets Visuales
+- Se incorporo `stitch/icon.png` como recurso oficial `@drawable/app_icon` en el manifiesto y como emblema en la barra superior de la cabina.
