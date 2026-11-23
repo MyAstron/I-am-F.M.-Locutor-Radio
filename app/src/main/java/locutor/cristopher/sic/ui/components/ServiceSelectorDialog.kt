@@ -27,7 +27,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,7 +43,6 @@ import locutor.cristopher.sic.ui.theme.CockpitPrimary
 import locutor.cristopher.sic.ui.theme.CockpitPrimaryContainer
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainer
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHigh
-import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHighest
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerLow
 
 @Composable
@@ -91,7 +89,7 @@ fun ServiceSelectorDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Selecciona qué reproductor debe controlar la cabina para asegurar respuesta en Anterior, Pausa y Siguiente.",
+                    text = "Vincula tu reproductor preferido estilo Waze para controlar Anterior, Pausa y Siguiente sin cortes:",
                     style = MaterialTheme.typography.bodySmall,
                     color = CockpitOnSurfaceVariant
                 )
@@ -121,7 +119,8 @@ fun ServiceSelectorDialog(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(
                                         imageVector = if (option.isAuto) Icons.Default.Radio else Icons.Default.MusicNote,
@@ -130,15 +129,35 @@ fun ServiceSelectorDialog(
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Column {
-                                        Text(
-                                            text = option.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = if (isSelected) CockpitPrimaryContainer else CockpitOnSurface,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = option.name,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = if (isSelected) CockpitPrimaryContainer else CockpitOnSurface,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                            if (option.isInstalled && !option.isAuto) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .background(CockpitPrimaryContainer.copy(alpha = 0.2f))
+                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Instalada",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = CockpitPrimaryContainer,
+                                                        fontSize = 9.sp
+                                                    )
+                                                }
+                                            }
+                                        }
                                         if (option.isAuto) {
                                             Text(
-                                                text = "Detecta la app sonando en el teléfono",
+                                                text = "Controla automáticamente la app sonando",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = CockpitOnSurfaceVariant,
                                                 fontSize = 10.sp

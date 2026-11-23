@@ -12,7 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 data class MusicServiceOption(
     val name: String,
     val packageName: String,
-    val isAuto: Boolean = false
+    val isAuto: Boolean = false,
+    val isInstalled: Boolean = true
 )
 
 class MusicServiceLinker(private val context: Context) {
@@ -25,16 +26,66 @@ class MusicServiceLinker(private val context: Context) {
     )
     val selectedService: StateFlow<String> = _selectedService.asStateFlow()
 
-    val availableServices = listOf(
-        MusicServiceOption("Detección Automática", AUTO_DETECT_PACKAGE, isAuto = true),
-        MusicServiceOption("Spotify", "com.spotify.music"),
-        MusicServiceOption("YouTube Music", "com.google.android.apps.youtube.music"),
-        MusicServiceOption("Apple Music", "com.apple.android.music"),
-        MusicServiceOption("Deezer", "deezer.android.app"),
-        MusicServiceOption("Amazon Music", "com.amazon.mp3"),
-        MusicServiceOption("Tidal", "com.aspiro.tidal"),
-        MusicServiceOption("Reproductor Local MP3", "default.local.player")
+    private val knownMusicPackages = listOf(
+        Pair("Spotify", "com.spotify.music"),
+        Pair("YouTube Music", "com.google.android.apps.youtube.music"),
+        Pair("Apple Music", "com.apple.android.music"),
+        Pair("Deezer", "deezer.android.app"),
+        Pair("Amazon Music", "com.amazon.mp3"),
+        Pair("Tidal", "com.aspiro.tidal"),
+        Pair("Poweramp", "com.maxmpz.audioplayer"),
+        Pair("Musicolet", "in.krosbits.musicolet")
     )
+
+    val availableServices: List<MusicServiceOption>
+        get() = getDetectedServices()
+
+    fun getDetectedServices(): List<MusicServiceOption> {
+        val list = mutableListOf<MusicServiceOption>()
+
+        // 1. Opción predeterminada: Detección Automática Waze
+        list.add(
+            MusicServiceOption(
+                name = "Detección Automática",
+                packageName = AUTO_DETECT_PACKAGE,
+                isAuto = true,
+                isInstalled = true
+            )
+        )
+
+        // 2. Apps conocidas con detección de instalación real en el dispositivo
+        knownMusicPackages.forEach { (name, pkg) ->
+            val isInstalled = isAppInstalled(pkg)
+            list.add(
+                MusicServiceOption(
+                    name = name,
+                    packageName = pkg,
+                    isAuto = false,
+                    isInstalled = isInstalled
+                )
+            )
+        }
+
+        // 3. Opción genérica local
+        list.add(
+            MusicServiceOption(
+                name = "Reproductor Local MP3",
+                packageName = "default.local.player",
+                isAuto = false,
+                isInstalled = true
+            )
+        )
+
+        return list
+    }
+
+    private fun isAppInstalled(packageName: String): Boolean {
+        return try {
+            context.packageManager.getLaunchIntentForPackage(packageName) != null
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     fun selectService(packageName: String) {
         prefs.edit().putString("selected_package", packageName).apply()
@@ -44,8 +95,8 @@ class MusicServiceLinker(private val context: Context) {
     fun isAutoDetect(): Boolean = _selectedService.value == AUTO_DETECT_PACKAGE
 
     fun getSelectedServiceOption(): MusicServiceOption {
-        return availableServices.find { it.packageName == _selectedService.value }
-            ?: availableServices.first()
+        val all = getDetectedServices()
+        return all.find { it.packageName == _selectedService.value } ?: all.first()
     }
 
     /**
@@ -53,7 +104,7 @@ class MusicServiceLinker(private val context: Context) {
      */
     fun launchMusicApp(): Boolean {
         val pkg = _selectedService.value
-        if (pkg == AUTO_DETECT_PACKAGE || pkg.isBlank()) return false
+        if (pkg == AUTO_DETECT_PACKAGE || pkg.isBlank() || pkg == "default.local.player") return false
         val intent = context.packageManager.getLaunchIntentForPackage(pkg) ?: return false
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)

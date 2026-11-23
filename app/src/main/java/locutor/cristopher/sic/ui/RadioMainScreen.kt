@@ -227,8 +227,13 @@ fun RadioMainScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                val isSpeaking = isExecuting || waveState.isEmitting
+                val isPlayingMusic = currentTrack.isPlaying
+
                 CentralAnnouncerPowerButton(
                     isEnabled = config.isEnabled,
+                    isSpeaking = isSpeaking,
+                    isPlayingMusic = isPlayingMusic,
                     waveState = waveState,
                     voiceStyleLabel = config.voiceStyle,
                     onToggle = { viewModel.toggleAnnouncer() }

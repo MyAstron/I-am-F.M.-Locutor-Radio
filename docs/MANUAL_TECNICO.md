@@ -76,3 +76,16 @@ app/src/main/java/locutor/cristopher/sic/
 
 ### 2.4 Integracion de Icono y Assets Visuales
 - Se incorporo `stitch/icon.png` como recurso oficial `@drawable/app_icon` en el manifiesto y como emblema en la barra superior de la cabina.
+
+### 2.5 Ducking Nativo de Audio sin Alterar Volumen General del Sistema (AudioFadeController)
+- **Atenuacion de musica exclusiva:** Se elimino cualquier mutacion de `AudioManager.setStreamVolume` sobre `STREAM_MUSIC` o `STREAM_RING`.
+- **Foco de audio transitorio:** Utiliza `AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)` con atributos `USAGE_ASSISTANCE_NAVIGATION_GUIDANCE` y `CONTENT_TYPE_SPEECH`.
+- **Comportamiento sin pausa:** Con `setWillPauseWhenDucked(false)`, las apps reproductoras externas (Spotify, YouTube Music) atenúan su salida en segundo plano de manera continua (estilo Waze/WhatsApp).
+- **Restauracion instantanea:** Al culminar la locucion o la prueba, se invoca `abandonAudioFocusRequest`, devolviendo la musica a su volumen nominal sin alterar la barra de volumen general del telefono.
+
+### 2.6 Ondas Reactivas Duales y Conmutacion Dinamica de Icono (SoundWaveRing + CentralAnnouncerPowerButton)
+- **Animacion de sonido unificada:** Los anillos de ondas concentricas reaccionan activamente tanto al hablar el locutor (`isSpeaking == true`) como durante la reproduccion musical en curso (`isPlayingMusic == true`).
+- **Alternancia de icono segun emision:**
+  - Si el locutor habla: Icono de microfono (`Icons.Default.Mic`) con etiqueta "LOCUTOR EN VIVO".
+  - Si suena musica: Icono de ecualizador (`Icons.Default.GraphicEq`) con etiqueta "MÚSICA EN RUTA".
+  - En espera o inactivo: Icono de radio (`Icons.Default.Radio`) o microfono apagado (`Icons.Default.MicOff`) con etiqueta "LOCUTOR LISTO" o "LOCUTOR PAUSADO".

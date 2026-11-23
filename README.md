@@ -6,34 +6,37 @@
 [![CLI Workflow](https://img.shields.io/badge/Workflow-CLI-0F172A?style=flat&logo=gnubash&logoColor=white)](#)
 
 ## Descripcion del Proyecto
-I AM-FM: Locutor Radio es una aplicacion nativa para Android (Kotlin y Jetpack Compose) con interfaz estilo Waze que controla de forma basica la reproduccion activa de otras apps de musica en el telefono (sin exigir cuentas Premium ni integrar APIs musicales cerradas) e incorpora un locutor por voz que interviene al terminar una cancion cuando coincide con una hora exacta, aplicando un fade previo para priorizar la locucion.
+I AM-FM: Locutor Radio es una aplicacion nativa para Android (Kotlin y Jetpack Compose) con interfaz estilo Waze que controla de forma basica la reproduccion activa de otras apps de musica en el telefono (sin exigir cuentas Premium ni integrar APIs musicales cerradas) e incorpora un locutor por voz que interviene al terminar una cancion cuando coincide con una hora exacta, aplicando ducking nativo transitorio exclusivo para la musica sin alterar el volumen general del dispositivo.
 
 ## Especificaciones de Uso y Mantenimiento
-- **Plataforma y compilacion:** Android (minSdk 26), desarrollado y compilado mediante flujo CLI y Android SDK.
+- **Plataforma y compilacion:** Android (minSdk 26), desarrollado y compilado mediante flujo CLI con Android SDK y Gradle (JavaVersion 17 con jvmToolchain 21).
 - **Referencia visual e icono:** Basado en los archivos HTML de stitch/ y en el icono oficial stitch/icon.png integrado en los drawables de la aplicacion.
-- **Vinculacion de servicio musical:** Permite seleccionar y vincular la app de musica (Spotify, YouTube Music, Apple Music, Deezer, etc.) o detectar sesiones multimedia activas para operar los controles basicos (Anterior, Reproducir/Pausar y Siguiente, sin lista de reproduccion) con doble respaldo de eventos multimedia directos.
+- **Boton Vincular estilo Waze y seleccion musical:** Boton visible en la tarjeta de reproduccion que despliega una lista de aplicaciones de musica instaladas y detectadas (Spotify, YouTube Music, Apple Music, Deezer, etc.) con etiqueta de estado e inicio rapido, manteniendo activos los controles de Anterior, Reproducir/Pausar y Siguiente mediante MediaController o eventos directos.
+- **Ducking exclusivo sobre musica:** Utiliza foco de audio transitorio (AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK con USAGE_ASSISTANCE_NAVIGATION_GUIDANCE y CONTENT_TYPE_SPEECH) para atenuar la musica durante la locucion sin tocar el volumen del sistema ni modificar STREAM_RING o STREAM_MUSIC global.
+- **Ondas reactivas con alternancia de icono:** Anillos de sonido concentricos activos tanto durante la locucion como en reproduccion musical, alternando dinamicamente entre el icono de microfono (Locutor en vivo), ecualizador grafico (Musica en ruta) y radio/apagado.
 - **Voz, frases y clima:** Soporta variaciones de voz, catalogo CRUD de frases sin repetir la ultima usada y mencion de clima local unicamente con permiso explicito del usuario.
-- **Mantenimiento:** Mantener desacoplados el enlace de sesion multimedia, el controlador de fade, el repositorio CRUD de frases, el motor de voz y el proveedor opcional de clima.
+- **Mantenimiento:** Mantener desacoplados el enlace de sesion multimedia, el controlador de ducking, el repositorio CRUD de frases, el motor de voz y el proveedor opcional de clima.
 
 ## Guia de Usuario y Funcionamiento General
-1. **Permisos y servicio de musica:** Concede acceso a notificaciones y selecciona o vincula tu servicio de musica mediante el dialogo de enlace para habilitar los controles de Anterior, Reproducir/Pausar y Siguiente.
-2. **Boton central y ondas:** Usa el boton central grande para encender o apagar al locutor y observa las ondas reactivas al sonido a su alrededor vibrando durante la reproduccion y la locucion.
-3. **Menu de frases (CRUD) y variaciones de voz:** Crea, edita, consulta o elimina frases personalizadas con etiquetas dinamicas ({cancion}, {artista}, {hora}, {clima}) y garantiza una rotacion sin repeticion consecutiva.
-4. **Clima local opcional y fade:** Si otorgas permiso para clima local, el locutor puede incluirlo en el reporte; al cerrar una cancion en hora exacta, aplica fade previo para priorizar su voz y restaura el audio al terminar.
+1. **Permisos y boton Vincular:** Concede acceso a notificaciones y pulsa el boton Vincular en la tarjeta de la cabina para seleccionar o abrir tu reproductor preferido (detectado automaticamente).
+2. **Controles Waze:** Controla Anterior, Reproducir/Pausar y Siguiente de inmediato en cualquier sesion multimedia activa.
+3. **Boton central y ondas reactivas:** Observa los anillos de audio continuos tanto cuando suena una cancion (icono de musica) como cuando el locutor habla (icono de microfono), cambiando de estado de forma reactiva.
+4. **Ducking limpio tipo WhatsApp/Waze:** Al dar la hora o emitir una locucion, la musica baja de volumen suavemente sin alterar la barra de volumen general del telefono, restaurandose al culminar.
+5. **Menu de frases (CRUD) y clima:** Personaliza tus locuciones con variables dinamicas sin repeticiones consecutivas y anade clima local si otorgas el permiso correspondiente.
 
 ## Implementacion Tecnica
-- **Enlace y control de sesiones:** MusicServiceLinker y MediaSessionRepository gestionan la app musical seleccionada y observan MediaSessionManager para despachar comandos basicos, con respaldo de eventos directos KeyEvent si no hay controlador enlazado.
-- **Priorizacion por fade:** AudioFadeController ejecuta fade out / fade in y foco de audio antes y despues de la locucion mediante AudioManager.
+- **Enlace y control de sesiones:** MusicServiceLinker y MediaSessionRepository gestionan la deteccion de aplicaciones instaladas (packageManager.getLaunchIntentForPackage) y operan sobre MediaController y dispatchMediaKeyEvent.
+- **Ducking nativo sin impacto en volumen global:** AudioFadeController solicita foco de audio transitorio con atenuacion voluntaria (setWillPauseWhenDucked(false)) y restaura el nivel al finalizar con abandonAudioFocusRequest, evitando mutaciones directas sobre setStreamVolume.
+- **Modulacion visual y conmutacion de iconos:** SoundWaveRing y CentralAnnouncerPowerButton coordinan las animaciones concentricas para senales de voz y de musica, alternando los iconos de microfono, ecualizador musical y radio.
 - **CRUD y rotacion de frases:** PhraseCrudRepository almacena las frases del usuario y selecciona una distinta a la anterior (lastUsedPhraseId), integrando variables dinamicas.
-- **Variaciones de voz y ondas:** AndroidTtsVoiceEngine gestiona el sintetizador de voz y emite niveles continuos de modulacion para animar los anillos de SoundWaveRing.
 - **Clima local condicionado a permiso:** LocalWeatherProvider evalua los permisos de localizacion antes de consultar las condiciones meteorologicas, omitiendo limpiamente la variable si el permiso no esta concedido.
 
 ## Manual de Desarrollo
 Pendiente de redactar al finalizar todas las fases del proyecto.
 
 ### Cambio Principal de Esta Version (Evaluacion Progresiva)
-- **Que era:** Una version donde el control multimedia pedia permiso de notificaciones pero no vinculaba explicitamente el servicio de musica ni habilitaba el control efectivo, sin icono stitch/icon.png integrado, sin menu CRUD de frases con rotacion ni clima local opcional.
-- **Que es:** Una cabina en Kotlin/Compose con enlace y seleccion de servicio de musica para controles basicos plenamente funcionales (con fallback de teclas multimedia directas), icono stitch/icon.png integrado en la cabina y el manifiesto, menu dedicado con CRUD completo de frases sin repeticion consecutiva, opcion de clima local bajo permiso explicito y fade previo de locutor.
+- **Que era:** Una version con control de audio que intentaba ajustar el volumen global del sistema con setStreamVolume, sin deteccion de apps instaladas ni boton Vincular estilo Waze, y con ondas visuales que solo reaccionaban al locutor y no a la musica en reproduccion.
+- **Que es:** Una cabina completa estilo Waze con boton Vincular y selector de reproductores detectados/instalados, controles basicos siempre funcionales, ducking nativo transitorio exclusivo para musica (sin alterar el volumen general del dispositivo), ondas reactivas continuas para voz y musica con alternancia dinamica de icono (microfono vs ecualizador), CRUD completo de frases sin repeticion y clima local opcional.
 - **Que sera:** En la siguiente iteracion, soporte de sincronizacion con APIs meteorologicas remotas en tiempo real y conexion con modelos de lenguaje ligeros en el dispositivo para generar comentarios contextuales de trafico o anecdotas musicales.
 
 ## Creditos

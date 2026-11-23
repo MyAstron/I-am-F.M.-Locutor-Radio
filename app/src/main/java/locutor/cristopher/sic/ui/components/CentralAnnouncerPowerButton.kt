@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -43,6 +45,8 @@ import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHighest
 @Composable
 fun CentralAnnouncerPowerButton(
     isEnabled: Boolean,
+    isSpeaking: Boolean,
+    isPlayingMusic: Boolean,
     waveState: AudioWaveState,
     voiceStyleLabel: String,
     onToggle: () -> Unit,
@@ -69,6 +73,14 @@ fun CentralAnnouncerPowerButton(
         label = "IconColor"
     )
 
+    // Ícono central alternado según la fuente activa
+    val (activeIcon, topLabel, bottomLabel) = when {
+        isSpeaking -> Triple(Icons.Default.Mic, "LOCUTOR", "EN VIVO")
+        isPlayingMusic -> Triple(Icons.Default.GraphicEq, "MÚSICA", "EN RUTA")
+        isEnabled -> Triple(Icons.Default.Radio, "LOCUTOR", "LISTO")
+        else -> Triple(Icons.Default.MicOff, "LOCUTOR", "MUTED")
+    }
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,14 +89,16 @@ fun CentralAnnouncerPowerButton(
         Box(
             contentAlignment = Alignment.Center
         ) {
-            // Ondas sonoras reactivas
+            // Ondas sonoras reactivas (activas tanto en locución como en reproducción de música)
             SoundWaveRing(
                 waveState = waveState,
                 isEnabled = isEnabled,
+                isSpeaking = isSpeaking,
+                isPlayingMusic = isPlayingMusic,
                 baseSize = 132.dp
             )
 
-            // Botón central maestro
+            // Botón central maestro táctil
             Box(
                 modifier = Modifier
                     .size(132.dp)
@@ -116,25 +130,25 @@ fun CentralAnnouncerPowerButton(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            imageVector = if (isEnabled) Icons.Default.Mic else Icons.Default.MicOff,
-                            contentDescription = if (isEnabled) "Locutor Encendido" else "Locutor Apagado",
+                            imageVector = activeIcon,
+                            contentDescription = bottomLabel,
                             tint = iconColor,
                             modifier = Modifier.size(38.dp)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "LOCUTOR",
+                            text = topLabel,
                             style = MaterialTheme.typography.labelSmall,
                             color = iconColor,
                             letterSpacing = 1.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = if (isEnabled) "ON" else "MUTED",
+                            text = bottomLabel,
                             style = MaterialTheme.typography.labelMedium,
                             color = iconColor,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         )
                     }
                 }
@@ -143,7 +157,7 @@ fun CentralAnnouncerPowerButton(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Subtexto de telemetría del locutor
+        // Subtexto de telemetría del locutor / música
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -155,7 +169,12 @@ fun CentralAnnouncerPowerButton(
                     .background(if (isEnabled) CockpitPrimaryContainer else CockpitOnSurfaceVariant)
             )
             Text(
-                text = "Voz: $voiceStyleLabel",
+                text = when {
+                    isSpeaking -> "Locución activa: $voiceStyleLabel"
+                    isPlayingMusic -> "Reproduciendo en cabina · Ondas activas"
+                    isEnabled -> "Voz configurada: $voiceStyleLabel"
+                    else -> "Locutor silenciado"
+                },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
@@ -163,7 +182,12 @@ fun CentralAnnouncerPowerButton(
         }
 
         Text(
-            text = if (isEnabled) "Priorización con fade y anuncio horario activada" else "Locución horaria en pausa",
+            text = when {
+                isSpeaking -> "Atenuación de música (ducking) en curso"
+                isPlayingMusic -> "Ondas visuales sincronizadas con la reproducción"
+                isEnabled -> "Listo para intervenir al cierre de canción en punto"
+                else -> "Pulsa para activar el copiloto de radio"
+            },
             style = MaterialTheme.typography.bodySmall,
             color = CockpitOnSurfaceVariant,
             textAlign = TextAlign.Center

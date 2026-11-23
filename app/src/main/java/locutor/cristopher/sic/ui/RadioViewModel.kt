@@ -32,7 +32,8 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
 
     val phrases: StateFlow<List<RadioPhrase>> = coordinator.phraseRepository.phrases
     val selectedService: StateFlow<String> = coordinator.mediaRepository.musicLinker.selectedService
-    val availableServices: List<MusicServiceOption> = coordinator.mediaRepository.musicLinker.availableServices
+    val availableServices: List<MusicServiceOption>
+        get() = coordinator.mediaRepository.musicLinker.getDetectedServices()
     val isWeatherEnabled: StateFlow<Boolean> = coordinator.weatherProvider.isWeatherEnabled
 
     private val _nextBroadcastLabel = MutableStateFlow("14:00")

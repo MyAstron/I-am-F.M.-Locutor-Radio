@@ -50,10 +50,18 @@ class AndroidTtsVoiceEngine(
                 // Si español de España no está, probar español genérico o default del sistema
                 tts?.setLanguage(Locale.forLanguageTag("es"))
             }
+
+            // Configurar canal de audio como asistencia de navegación (estilo Waze/Maps)
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build()
+            tts?.setAudioAttributes(audioAttributes)
+
             isInitialized = true
             pendingReadyCallback?.invoke()
             pendingReadyCallback = null
-            Log.d("AndroidTtsVoiceEngine", "TextToSpeech inicializado con éxito.")
+            Log.d("AndroidTtsVoiceEngine", "TextToSpeech inicializado con éxito como USAGE_ASSISTANCE_NAVIGATION_GUIDANCE.")
         } else {
             Log.e("AndroidTtsVoiceEngine", "Error al inicializar TextToSpeech. Estado: $status")
         }

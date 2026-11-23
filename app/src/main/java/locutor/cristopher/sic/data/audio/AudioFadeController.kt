@@ -12,99 +12,77 @@ class AudioFadeController(private val context: Context) {
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private var audioFocusRequest: AudioFocusRequest? = null
-    private var originalMusicVolume: Int = -1
 
     private val focusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         Log.d("AudioFadeController", "AudioFocus changed: $focusChange")
     }
 
     /**
-     * Aplica atenuación previa (Fade Out / Ducking) antes de la locución por voz
-     * para garantizar prioridad acústica sobre la música externa.
+     * Aplica atenuación previa (Fade / Ducking) EXCLUSIVAMENTE sobre la música externa
+     * mediante el mecanismo nativo de AudioFocus con ducking (AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).
+     *
+     * IMPORTANTE: No modifica el volumen general del teléfono (STREAM_RING / STREAM_MUSIC global)
+     * para preservar intacto el control de volumen del usuario (efecto tipo WhatsApp / Waze).
      */
     suspend fun fadeOutForVoice(fadeDurationMs: Long = 1500L, duckingDepthPercent: Int = 15) {
         try {
-            // Guardar volumen original para restaurarlo después
-            originalMusicVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-
-            // Solicitar foco transitorio con ducking nativo
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val playbackAttributes = AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
 
-                audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                val builder = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                     .setAudioAttributes(playbackAttributes)
                     .setAcceptsDelayedFocusGain(true)
                     .setOnAudioFocusChangeListener(focusChangeListener)
-                    .build()
 
-                audioFocusRequest?.let { audioManager.requestAudioFocus(it) }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    builder.setWillPauseWhenDucked(false)
+                }
+
+                audioFocusRequest = builder.build()
+                val focusResult = audioManager.requestAudioFocus(audioFocusRequest!!)
+                Log.d("AudioFadeController", "AudioFocus Ducking concedido con resultado: $focusResult")
             } else {
                 @Suppress("DEPRECATION")
-                audioManager.requestAudioFocus(
+                val focusResult = audioManager.requestAudioFocus(
                     focusChangeListener,
                     AudioManager.STREAM_MUSIC,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
                 )
+                Log.d("AudioFadeController", "AudioFocus Ducking legado concedido: $focusResult")
             }
 
-            // Aplicar rampa suave de volumen hacia el nivel de ducking deseado
-            val targetVolume = ((originalMusicVolume * duckingDepthPercent) / 100).coerceAtLeast(1)
-            val steps = 6
-            val stepDelay = (fadeDurationMs / steps).coerceAtLeast(20L)
-
-            val currentVol = originalMusicVolume
-            if (currentVol > targetVolume) {
-                val volDiff = currentVol - targetVolume
-                for (i in 1..steps) {
-                    val intermediateVol = currentVol - (volDiff * i / steps)
-                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, intermediateVol, 0)
-                    delay(stepDelay)
-                }
-            } else {
-                delay(fadeDurationMs)
-            }
+            // Pausa breve para permitir la transición suave del ducking nativo de Spotify/YouTube Music
+            delay((fadeDurationMs / 3).coerceIn(200L, 500L))
         } catch (e: Exception) {
-            Log.e("AudioFadeController", "Error al ejecutar fade out", e)
+            Log.e("AudioFadeController", "Error al solicitar foco con ducking", e)
         }
     }
 
     /**
-     * Restaura suavemente el volumen original de la música (Fade In) tras finalizar la locución.
+     * Restaura el audio de la música abandonando el foco de audio.
+     * Al liberar el foco, el reproductor externo (Spotify, YouTube Music, etc.)
+     * devuelve automáticamente el volumen al 100% de manera fluida y suave.
      */
     suspend fun fadeInAfterVoice(fadeDurationMs: Long = 2000L) {
         try {
-            if (originalMusicVolume >= 0) {
-                val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                val targetVol = originalMusicVolume
-                val steps = 8
-                val stepDelay = (fadeDurationMs / steps).coerceAtLeast(20L)
-
-                if (targetVol > currentVol) {
-                    val diff = targetVol - currentVol
-                    for (i in 1..steps) {
-                        val intermediateVol = currentVol + (diff * i / steps)
-                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, intermediateVol, 0)
-                        delay(stepDelay)
-                    }
-                }
-                audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, originalMusicVolume, 0)
-                originalMusicVolume = -1
-            }
-
-            // Abandonar foco de audio
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+                audioFocusRequest?.let {
+                    val result = audioManager.abandonAudioFocusRequest(it)
+                    Log.d("AudioFadeController", "AudioFocus abandonado con resultado: $result")
+                }
                 audioFocusRequest = null
             } else {
                 @Suppress("DEPRECATION")
-                audioManager.abandonAudioFocus(focusChangeListener)
+                val result = audioManager.abandonAudioFocus(focusChangeListener)
+                Log.d("AudioFadeController", "AudioFocus legado abandonado con resultado: $result")
             }
+
+            delay((fadeDurationMs / 4).coerceIn(150L, 400L))
         } catch (e: Exception) {
-            Log.e("AudioFadeController", "Error al ejecutar fade in", e)
+            Log.e("AudioFadeController", "Error al abandonar foco de audio", e)
         }
     }
 }
