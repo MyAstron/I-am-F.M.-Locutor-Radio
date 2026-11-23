@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Hearing
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
@@ -73,22 +74,7 @@ fun RadioMainScreen(
     val countdownSec by viewModel.countdownSeconds.collectAsState()
     val selectedService by viewModel.selectedService.collectAsState()
 
-    var showServiceSelectorDialog by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
-
-    if (showServiceSelectorDialog) {
-        ServiceSelectorDialog(
-            availableServices = viewModel.availableServices,
-            selectedPackage = selectedService,
-            onSelectService = { pkg ->
-                viewModel.selectMusicService(pkg)
-            },
-            onLaunchApp = {
-                viewModel.launchMusicApp()
-            },
-            onDismiss = { showServiceSelectorDialog = false }
-        )
-    }
 
     Column(
         modifier = modifier
@@ -153,27 +139,60 @@ fun RadioMainScreen(
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(CockpitSurfaceContainerHigh)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // Chip "Vincular" en la barra de telemetría superior de la Cabina
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(CockpitPrimaryContainer.copy(alpha = 0.2f))
+                        .clickable { viewModel.openServiceSelector() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Hearing,
-                        contentDescription = null,
-                        tint = CockpitPrimaryContainer,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        text = "AUTO",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CockpitOnSurfaceVariant
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Link,
+                            contentDescription = "Vincular app de música",
+                            tint = CockpitPrimaryContainer,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Vincular",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CockpitPrimaryContainer,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(CockpitSurfaceContainerHigh)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Hearing,
+                            contentDescription = null,
+                            tint = CockpitPrimaryContainer,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "AUTO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CockpitOnSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -184,7 +203,7 @@ fun RadioMainScreen(
             onPrevious = { viewModel.onPreviousClicked() },
             onPlayPause = { viewModel.onPlayPauseClicked() },
             onNext = { viewModel.onNextClicked() },
-            onOpenServiceSelector = { showServiceSelectorDialog = true }
+            onOpenServiceSelector = { viewModel.openServiceSelector() }
         )
 
         // 3. Center Stage - Tactile Master Locutor Switch Button with Sound Waves

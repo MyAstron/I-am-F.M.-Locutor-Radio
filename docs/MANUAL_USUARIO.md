@@ -3,8 +3,13 @@
 ## 1. Puesta en Marcha y Vinculacion Musical
 
 1. **Permiso de notificaciones:** Abre la aplicacion y concede el permiso en la pestana **Servicio** para permitir la lectura del reproductor activo.
-2. **Boton Vincular estilo Waze:** En la tarjeta de reproductor de la **Cabina**, pulsa el boton **VINCULAR** o toca el nombre del reproductor para abrir la ventana con todas las aplicaciones de musica instaladas y detectadas en tu telefono (Spotify, YouTube Music, Apple Music, Deezer, etc.) identificadas con la etiqueta "Instalada".
-3. **Controles funcionales desde el inicio:** Incluso antes de vincular una app especifica, los botones **Anterior**, **Reproducir/Pausar** y **Siguiente** actuan directamente sobre cualquier reproductor activo en el telefono con respaldo de comandos multimedia.
+2. **Acceso Ubicuo a "Vincular" (3 Lugares Clave):**
+   - **Barra Superior / Cabina:** Chip compacto interactivo **Vincular** en la parte superior derecha de la pantalla.
+   - **Tarjeta de Reproduccion Waze:** Boton **VINCULAR** en la cabecera de la tarjeta multimedia junto al nombre de la aplicacion.
+   - **Pantalla de Servicio:** Tarjeta destacada **Servicio de musica vinculado** con el boton grande **Vincular / Cambiar app**.
+3. **Seleccion de reproductor:** El dialogo detecta las aplicaciones instaladas en tu dispositivo (Spotify, YouTube Music, Apple Music, Deezer, etc.) con el distintivo **"Instalada"** y permite abrirlas de inmediato si no estan en ejecucion.
+4. **Lectura Completa de Informacion:** La tarjeta muestra el **titulo de la cancion**, **artista**, **album** y la **caratula oficial en alta definicion**, sincronizandose en tiempo real tanto con YouTube Music como con Spotify.
+5. **Control Play / Pausa Sincronizado:** El boton de reproduccion refleja siempre el estado real de la musica; al pausar o reproducir en YouTube Music, el icono cambia al instante sin desincronizarse.
 
 ## 2. Boton Maestro y Ondas Reactivas
 
@@ -36,5 +41,5 @@ En la parte superior de la pestana **Frases**:
 
 ## 6. Cabina y Ajustes
 
-- **Cabina:** Disfruta de la barra estilo Waze, el boton maestro reactivo y el simulador de prueba inmediata.
+- **Cabina:** Disfruta de la barra estilo Waze, caratula de musica en vivo, el boton maestro reactivo y el simulador de prueba inmediata.
 - **Ajustes:** Modifica el estilo de locutor, tono, velocidad de voz y duracion de los fundidos de audio.

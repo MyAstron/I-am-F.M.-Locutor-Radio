@@ -1,5 +1,6 @@
 package locutor.cristopher.sic.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,6 +34,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -157,7 +161,7 @@ fun WazeBasicControlBar(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Track metadata & Artwork placeholder
+            // Track metadata & Artwork (YouTube Music, Spotify, etc.)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -169,12 +173,23 @@ fun WazeBasicControlBar(
                         .background(CockpitSurfaceContainerHighest),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.GraphicEq,
-                        contentDescription = null,
-                        tint = CockpitPrimary,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    if (trackInfo.albumArtBitmap != null) {
+                        Image(
+                            bitmap = trackInfo.albumArtBitmap.asImageBitmap(),
+                            contentDescription = "Carátula de ${trackInfo.title}",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.GraphicEq,
+                            contentDescription = null,
+                            tint = CockpitPrimary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -190,7 +205,7 @@ fun WazeBasicControlBar(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = trackInfo.artist,
+                        text = if (trackInfo.album.isNotBlank()) "${trackInfo.artist} · ${trackInfo.album}" else trackInfo.artist,
                         style = MaterialTheme.typography.bodyMedium,
                         color = CockpitOnSurfaceVariant,
                         maxLines = 1,

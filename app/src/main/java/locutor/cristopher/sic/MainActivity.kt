@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Sensors
@@ -38,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +63,7 @@ import locutor.cristopher.sic.ui.RadioPhrasesCrudScreen
 import locutor.cristopher.sic.ui.RadioServiceScreen
 import locutor.cristopher.sic.ui.RadioSettingsScreen
 import locutor.cristopher.sic.ui.RadioViewModel
+import locutor.cristopher.sic.ui.components.ServiceSelectorDialog
 import locutor.cristopher.sic.ui.theme.CockpitOnPrimary
 import locutor.cristopher.sic.ui.theme.CockpitOnSurface
 import locutor.cristopher.sic.ui.theme.CockpitOnSurfaceVariant
@@ -142,6 +146,24 @@ fun MainAppScaffold(
 
     val currentScreen = screens.find { it.route == currentRoute } ?: Screen.Cabina
 
+    val isServiceSelectorOpen by viewModel.isServiceSelectorOpen.collectAsState()
+    val availableServices = viewModel.availableServices
+    val selectedService by viewModel.selectedService.collectAsState()
+
+    if (isServiceSelectorOpen) {
+        ServiceSelectorDialog(
+            availableServices = availableServices,
+            selectedPackage = selectedService,
+            onSelectService = { pkg ->
+                viewModel.selectMusicService(pkg)
+            },
+            onLaunchApp = {
+                viewModel.launchMusicApp()
+            },
+            onDismiss = { viewModel.closeServiceSelector() }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -187,6 +209,34 @@ fun MainAppScaffold(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.padding(end = 12.dp)
                     ) {
+                        // 1. Chip botón compacto "Vincular" en Barra Superior / Cabina
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(CockpitPrimaryContainer.copy(alpha = 0.2f))
+                                .clickable { viewModel.openServiceSelector() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Link,
+                                    contentDescription = "Vincular app de música",
+                                    tint = CockpitPrimaryContainer,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Vincular",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = CockpitPrimaryContainer,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
                         // Badge 2do plano activo
                         Box(
                             modifier = Modifier

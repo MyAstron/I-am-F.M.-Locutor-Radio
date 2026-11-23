@@ -1,5 +1,7 @@
 package locutor.cristopher.sic.domain.model
 
+import android.graphics.Bitmap
+
 data class TrackInfo(
     val title: String = "Sin reproducción activa",
     val artist: String = "Abre tu app de música (Spotify, YouTube Music...)",
@@ -10,7 +12,8 @@ data class TrackInfo(
     val durationMs: Long = 0L,
     val positionMs: Long = 0L,
     val playbackState: Int = 0,
-    val albumArtUri: String? = null
+    val albumArtUri: String? = null,
+    val albumArtBitmap: Bitmap? = null
 ) {
     val hasTrack: Boolean
         get() = title.isNotBlank() && title != "Sin reproducción activa"

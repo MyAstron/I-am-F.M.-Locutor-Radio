@@ -1,10 +1,14 @@
 package locutor.cristopher.sic.data.media
 
+import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -13,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import locutor.cristopher.sic.domain.model.TrackInfo
+import locutor.cristopher.sic.service.MediaMonitorNotificationListener
 
 class MediaSessionRepository private constructor(private val context: Context) {
 
@@ -27,7 +32,7 @@ class MediaSessionRepository private constructor(private val context: Context) {
     private val _currentTrack = MutableStateFlow(
         TrackInfo(
             title = "Sin reproducción activa",
-            artist = "Abre tu música o pulsa Vincular Servicio",
+            artist = "Abre tu app de música o pulsa Vincular",
             album = "",
             packageName = "",
             appName = "Sistema Android",
@@ -62,12 +67,34 @@ class MediaSessionRepository private constructor(private val context: Context) {
         onTrackChangedListener = listener
     }
 
+    /**
+     * Consulta activamente las sesiones activas mediante el ComponentName del NotificationListener.
+     */
+    fun refreshActiveSessions() {
+        try {
+            val component = ComponentName(context, MediaMonitorNotificationListener::class.java)
+            mediaSessionManager?.let { mgr ->
+                val sessions = mgr.getActiveSessions(component)
+                updateActiveSessions(sessions)
+            }
+        } catch (e: SecurityException) {
+            Log.w("MediaSessionRepository", "Permiso de acceso a notificaciones pendiente", e)
+        } catch (e: Exception) {
+            Log.e("MediaSessionRepository", "Error al consultar getActiveSessions", e)
+        }
+    }
+
+    /**
+     * Vincula el MediaController correcto según la app vinculada o la sesión activa actual.
+     * Limpia callbacks previos y re-registra en la sesión activa para recibir eventos en vivo.
+     */
     fun updateActiveSessions(controllers: List<MediaController>) {
         val selectedPkg = musicLinker.selectedService.value
         val isAuto = musicLinker.isAutoDetect()
 
         val matchingController = if (!isAuto) {
             controllers.firstOrNull { it.packageName == selectedPkg }
+                ?: controllers.firstOrNull { it.packageName != context.packageName }
         } else {
             controllers.firstOrNull { controller ->
                 val pkg = controller.packageName ?: ""
@@ -80,9 +107,17 @@ class MediaSessionRepository private constructor(private val context: Context) {
 
         if (matchingController != null) {
             if (activeController != matchingController) {
-                activeController?.unregisterCallback(controllerCallback)
+                try {
+                    activeController?.unregisterCallback(controllerCallback)
+                } catch (e: Exception) {
+                    Log.w("MediaSessionRepository", "Error al desregistrar callback anterior", e)
+                }
                 activeController = matchingController
-                activeController?.registerCallback(controllerCallback, mainHandler)
+                try {
+                    activeController?.registerCallback(controllerCallback, mainHandler)
+                } catch (e: Exception) {
+                    Log.w("MediaSessionRepository", "Error al registrar callback en controlador activo", e)
+                }
             }
             updateTrackFromMetadata(activeController?.metadata, activeController?.playbackState)
         } else if (!isAuto) {
@@ -94,29 +129,63 @@ class MediaSessionRepository private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Extrae título, artista, álbum y carátula (Bitmap o URI decodificado)
+     * compatibles con YouTube Music, Spotify, Apple Music y reproductores locales.
+     */
     private fun updateTrackFromMetadata(metadata: MediaMetadata?, state: PlaybackState?) {
         val controller = activeController ?: return
+
         val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
             ?: "Reproduciendo"
+
         val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             ?: "Artista externo"
+
         val album = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM) ?: ""
         val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
         val position = state?.position ?: 0L
         val isPlaying = state?.state == PlaybackState.STATE_PLAYING
+
+        // Extracción de carátula en Bitmap
+        var artBitmap: Bitmap? = try {
+            metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+        } catch (e: Exception) {
+            Log.w("MediaSessionRepository", "Error al leer bitmap de metadatos", e)
+            null
+        }
+
+        val artUri = metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+            ?: metadata?.getString(MediaMetadata.METADATA_KEY_ART_URI)
+
+        if (artBitmap == null && !artUri.isNullOrBlank()) {
+            try {
+                val parsedUri = Uri.parse(artUri)
+                context.contentResolver.openInputStream(parsedUri)?.use { stream ->
+                    artBitmap = BitmapFactory.decodeStream(stream)
+                }
+            } catch (e: Exception) {
+                Log.w("MediaSessionRepository", "No se pudo cargar carátula desde URI: $artUri", e)
+            }
+        }
+
+        val resolvedAppName = PlatformResolver.resolveAppName(controller.packageName ?: "")
 
         val newTrack = TrackInfo(
             title = title,
             artist = artist,
             album = album,
             packageName = controller.packageName ?: "",
-            appName = PlatformResolver.resolveAppName(controller.packageName ?: ""),
+            appName = resolvedAppName,
             isPlaying = isPlaying,
             durationMs = duration,
             positionMs = position,
-            playbackState = state?.state ?: 0
+            playbackState = state?.state ?: 0,
+            albumArtUri = artUri,
+            albumArtBitmap = artBitmap
         )
 
         val oldTrack = _currentTrack.value
@@ -128,20 +197,25 @@ class MediaSessionRepository private constructor(private val context: Context) {
         _currentTrack.value = newTrack
     }
 
+    /**
+     * Única fuente de la verdad para el estado de reproducción:
+     * Actualiza isPlaying directamente del PlaybackState real de la sesión (ej. YouTube Music).
+     */
     private fun updatePlaybackState(state: PlaybackState?) {
-        val isPlaying = state?.state == PlaybackState.STATE_PLAYING
-        val pos = state?.position ?: _currentTrack.value.positionMs
+        if (state == null) return
+        val isPlaying = state.state == PlaybackState.STATE_PLAYING
+        val pos = state.position
         _currentTrack.value = _currentTrack.value.copy(
             isPlaying = isPlaying,
             positionMs = pos,
-            playbackState = state?.state ?: 0
+            playbackState = state.state
         )
     }
 
     /*
-     * Controles funcionales con doble estrategia:
-     * 1. MediaController.transportControls
-     * 2. Fallback de evento directo AudioManager.dispatchMediaKeyEvent
+     * Controles funcionales:
+     * 1. MediaController.transportControls (prioridad y sincronización nativa)
+     * 2. Fallback de evento directo AudioManager.dispatchMediaKeyEvent si no hay sesión
      */
     fun skipToPrevious() {
         try {
@@ -156,20 +230,24 @@ class MediaSessionRepository private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * Corrige la desincronización de Play/Pausa con YouTube Music y otras apps:
+     * Evalúa el estado real del PlaybackState (STATE_PLAYING) para enviar pause() o play(),
+     * y NO invierte especulativamente el estado local. onPlaybackStateChanged actualizará la UI.
+     */
     fun playPause() {
         try {
-            val isPlaying = _currentTrack.value.isPlaying
-            if (activeController != null) {
-                if (isPlaying) {
-                    activeController?.transportControls?.pause()
-                    _currentTrack.value = _currentTrack.value.copy(isPlaying = false)
+            val controller = activeController
+            val currentState = controller?.playbackState?.state
+
+            if (controller != null) {
+                if (currentState == PlaybackState.STATE_PLAYING) {
+                    controller.transportControls.pause()
                 } else {
-                    activeController?.transportControls?.play()
-                    _currentTrack.value = _currentTrack.value.copy(isPlaying = true)
+                    controller.transportControls.play()
                 }
             } else {
                 musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
-                _currentTrack.value = _currentTrack.value.copy(isPlaying = !isPlaying)
             }
         } catch (e: Exception) {
             musicLinker.sendDirectMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)

@@ -36,6 +36,17 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
         get() = coordinator.mediaRepository.musicLinker.getDetectedServices()
     val isWeatherEnabled: StateFlow<Boolean> = coordinator.weatherProvider.isWeatherEnabled
 
+    private val _isServiceSelectorOpen = MutableStateFlow(false)
+    val isServiceSelectorOpen: StateFlow<Boolean> = _isServiceSelectorOpen.asStateFlow()
+
+    fun openServiceSelector() {
+        _isServiceSelectorOpen.value = true
+    }
+
+    fun closeServiceSelector() {
+        _isServiceSelectorOpen.value = false
+    }
+
     private val _nextBroadcastLabel = MutableStateFlow("14:00")
     val nextBroadcastLabel: StateFlow<String> = _nextBroadcastLabel.asStateFlow()
 
@@ -73,8 +84,7 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
     // Selección de servicio de música
     fun selectMusicService(packageName: String) {
         coordinator.mediaRepository.musicLinker.selectService(packageName)
-        val controllers = coordinator.mediaRepository
-        // Si hay una sesión previa del listener se re-filtra
+        coordinator.mediaRepository.refreshActiveSessions()
     }
 
     fun launchMusicApp(): Boolean {

@@ -89,3 +89,25 @@ app/src/main/java/locutor/cristopher/sic/
   - Si el locutor habla: Icono de microfono (`Icons.Default.Mic`) con etiqueta "LOCUTOR EN VIVO".
   - Si suena musica: Icono de ecualizador (`Icons.Default.GraphicEq`) con etiqueta "MÚSICA EN RUTA".
   - En espera o inactivo: Icono de radio (`Icons.Default.Radio`) o microfono apagado (`Icons.Default.MicOff`) con etiqueta "LOCUTOR LISTO" o "LOCUTOR PAUSADO".
+
+### 2.7 Sincronizacion de Metadatos y Caratulas (YouTube Music, Spotify, Apple Music)
+- **Enlace de MediaController:** Filtra dinamicamente las sesiones activas en `MediaSessionManager` mediante el `ComponentName` de `MediaMonitorNotificationListener`. Si el usuario selecciono un reproductor especifico, enlaza prioritariamente su sesion; en modo automatico, prioriza la sesion en estado de reproduccion.
+- **Extraccion exhaustiva de campos:**
+  - Titulo: `METADATA_KEY_TITLE` con fallback a `METADATA_KEY_DISPLAY_TITLE`.
+  - Artista: `METADATA_KEY_ARTIST` con fallback a `METADATA_KEY_ALBUM_ARTIST`.
+  - Album: `METADATA_KEY_ALBUM`.
+  - Caratula: Lectura de `Bitmap` directo via `METADATA_KEY_ALBUM_ART` o `METADATA_KEY_ART`. En reproductores que entregan URI (`METADATA_KEY_ALBUM_ART_URI` o `METADATA_KEY_ART_URI`), decodifica el stream a traves de `ContentResolver`.
+- **Re-registro reactivo de callbacks:** Al cambiar la lista de sesiones activas o la app seleccionada, se liberan callbacks anteriores y se registra `MediaController.Callback` sobre el controlador activo en el hilo principal (`mainHandler`).
+
+### 2.8 Correccion de Desincronizacion de Play/Pausa e Idempotencia
+- **Fuente unica de la verdad:** Se elimino cualquier mutacion especulativa o booleano local invertido al pulsar el boton de reproduccion. El icono en la UI se deriva estrictamente del `PlaybackState.state` notificado por `onPlaybackStateChanged`.
+- **Comandos transportControls precisos:**
+  - Si `playbackState?.state == PlaybackState.STATE_PLAYING`, despacha `transportControls.pause()`.
+  - Si esta en pausa o detenido, despacha `transportControls.play()`.
+  - Solo en caso de ausencia total de `MediaController` se utiliza `dispatchMediaKeyEvent(KEYCODE_MEDIA_PLAY_PAUSE)` como fallback.
+
+### 2.9 Ubicacion Triple del Acceso a Vincular
+- La accion de apertura del selector de reproductores (`ServiceSelectorDialog`) se expone en tres puntos clave:
+  1. **Barra Superior / Cabina:** Chip compacto interactivo "Vincular" junto al badge de estado en el `TopAppBar` y en el strip de telemetria.
+  2. **Tarjeta de Reproduccion Waze:** Chip y cabecera interactiva "VINCULAR" junto al nombre de la aplicacion sonando.
+  3. **Pantalla de Servicio:** Tarjeta dedicada "Servicio de musica vinculado" con boton de accion completa "Vincular / Cambiar app".

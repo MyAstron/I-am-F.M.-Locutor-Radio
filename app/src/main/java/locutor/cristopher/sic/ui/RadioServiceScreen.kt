@@ -3,6 +3,7 @@ package locutor.cristopher.sic.ui
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +25,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.RecordVoiceOver
@@ -43,8 +46,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import locutor.cristopher.sic.ui.theme.CockpitOnPrimary
@@ -67,6 +73,7 @@ fun RadioServiceScreen(
 ) {
     val uptime by viewModel.uptimeLabel.collectAsState()
     val isDucking by viewModel.duckingActive.collectAsState()
+    val currentTrack by viewModel.currentTrack.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
@@ -78,6 +85,138 @@ fun RadioServiceScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 3. Tarjeta destacada de Servicio de música vinculado estilo Waze
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CockpitSurfaceContainer)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(CockpitPrimaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Audiotrack,
+                                contentDescription = null,
+                                tint = CockpitOnPrimaryContainer,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text(
+                            text = "SERVICIO DE MÚSICA VINCULADO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CockpitPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(CockpitSurfaceContainerHighest)
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = if (currentTrack.isPlaying) "EN REPRODUCCIÓN" else "EN ESPERA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (currentTrack.isPlaying) CockpitPrimaryContainer else CockpitOnSurfaceVariant,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(CockpitSurfaceContainerHigh),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (currentTrack.albumArtBitmap != null) {
+                            Image(
+                                bitmap = currentTrack.albumArtBitmap!!.asImageBitmap(),
+                                contentDescription = "Carátula de ${currentTrack.title}",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(10.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = CockpitPrimary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = currentTrack.appName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = CockpitOnSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (currentTrack.hasTrack) {
+                                if (currentTrack.album.isNotBlank()) "${currentTrack.title} · ${currentTrack.artist} (${currentTrack.album})"
+                                else "${currentTrack.title} · ${currentTrack.artist}"
+                            } else "Esperando señal de reproducción...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CockpitOnSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = { viewModel.openServiceSelector() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = CockpitPrimaryContainer)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = null,
+                        tint = CockpitOnPrimaryContainer,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Vincular / Cambiar app",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = CockpitOnPrimaryContainer,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
         // System Health Hero Status
         Card(
             modifier = Modifier.fillMaxWidth(),
