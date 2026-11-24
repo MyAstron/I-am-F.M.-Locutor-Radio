@@ -134,6 +134,7 @@ class PhraseCrudRepository(context: Context) {
     /**
      * Sincroniza las frases cuando se activa o desactiva el clima.
      * Si el clima se desactiva, se desactivan automáticamente las frases que incluyan {clima}.
+     * Al activar nuevamente el clima, se reactivan automáticamente las frases que mencionan al clima.
      */
     fun onWeatherSettingChanged(isWeatherEnabled: Boolean) {
         if (!isWeatherEnabled) {
@@ -144,8 +145,17 @@ class PhraseCrudRepository(context: Context) {
                     phrase
                 }
             }
-            savePhrases()
+        } else {
+            // Al reactivar el clima, re-activar las frases que contienen etiquetas de clima
+            _phrases.value = _phrases.value.map { phrase ->
+                if (phrase.template.contains("{clima}", ignoreCase = true) || phrase.template.contains("clima", ignoreCase = true)) {
+                    phrase.copy(isActive = true)
+                } else {
+                    phrase
+                }
+            }
         }
+        savePhrases()
     }
 
     /**

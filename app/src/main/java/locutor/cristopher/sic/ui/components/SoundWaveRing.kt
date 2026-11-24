@@ -1,7 +1,7 @@
 package locutor.cristopher.sic.ui.components
 
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -34,106 +34,136 @@ fun SoundWaveRing(
 
     val isWaveActive = isSpeaking || isPlayingMusic
 
-    // Ancho de expansión de la onda exterior (más enérgica si habla el locutor, rítmica si es música)
+    // Nivel de intensidad acústica (0f a 1f)
+    val dynamicIntensity = if (isSpeaking) {
+        waveState.intensity.coerceIn(0.1f, 1.0f)
+    } else if (isPlayingMusic) {
+        // En reproducción de música, ritmo pulsante continuo
+        0.65f
+    } else if (isEnabled) {
+        0.20f
+    } else {
+        0.0f
+    }
+
+    // "Cuando haya más bulla genere ondas más amplias y caso contrario sean más armónicas"
+    val isHighNoise = dynamicIntensity > 0.55f
+
+    // 1. Escala exterior: en más bulla se expande hasta 2.0x, en modo armónico es suave (~1.22x)
     val outerTargetScale = when {
-        isSpeaking -> 1.55f
-        isPlayingMusic -> 1.42f
-        isEnabled -> 1.15f
-        else -> 1.0f
+        !isEnabled -> 1.0f
+        isSpeaking && isHighNoise -> 1.85f + (dynamicIntensity * 0.30f)
+        isSpeaking -> 1.35f + (dynamicIntensity * 0.15f)
+        isPlayingMusic && isHighNoise -> 1.60f
+        isPlayingMusic -> 1.28f
+        else -> 1.12f
     }
 
     val outerDuration = when {
-        isSpeaking -> 750
-        isPlayingMusic -> 1200
-        else -> 2400
+        !isWaveActive -> 2600
+        isHighNoise -> 550 // Ritmo rápido y amplio en volumen alto / bulla
+        else -> 1600       // Ritmo pausado y armónico
     }
 
     val outerScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
         targetValue = outerTargetScale,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = outerDuration, easing = FastOutSlowInEasing),
+            animation = tween(
+                durationMillis = outerDuration,
+                easing = if (isHighNoise) FastOutSlowInEasing else LinearOutSlowInEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "OuterRingScale"
     )
 
-    // Ancho de la onda media
+    // 2. Anillo medio: modulación reactiva directa
     val midTargetScale = when {
-        isSpeaking -> 1.32f
-        isPlayingMusic -> 1.25f
-        isEnabled -> 1.08f
-        else -> 1.0f
+        !isEnabled -> 1.0f
+        isSpeaking && isHighNoise -> 1.55f + (dynamicIntensity * 0.20f)
+        isSpeaking -> 1.22f + (dynamicIntensity * 0.10f)
+        isPlayingMusic && isHighNoise -> 1.40f
+        isPlayingMusic -> 1.18f
+        else -> 1.08f
     }
 
     val midDuration = when {
-        isSpeaking -> 550
-        isPlayingMusic -> 900
-        else -> 1800
+        !isWaveActive -> 2000
+        isHighNoise -> 420
+        else -> 1200
     }
 
     val midScale by infiniteTransition.animateFloat(
         initialValue = 1.0f,
         targetValue = midTargetScale,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = midDuration, easing = FastOutSlowInEasing),
+            animation = tween(
+                durationMillis = midDuration,
+                easing = if (isHighNoise) FastOutSlowInEasing else LinearOutSlowInEasing
+            ),
             repeatMode = RepeatMode.Reverse
         ),
         label = "MidRingScale"
     )
 
+    // Opacidades armónicas
     val outerAlpha = when {
-        isSpeaking -> 0.40f
-        isPlayingMusic -> 0.30f
-        isEnabled -> 0.12f
-        else -> 0.0f
+        !isEnabled -> 0.0f
+        isHighNoise -> 0.45f
+        isWaveActive -> 0.25f
+        else -> 0.10f
     }
 
     val midAlpha = when {
-        isSpeaking -> 0.55f
-        isPlayingMusic -> 0.42f
-        isEnabled -> 0.20f
-        else -> 0.0f
+        !isEnabled -> 0.0f
+        isHighNoise -> 0.60f
+        isWaveActive -> 0.38f
+        else -> 0.16f
     }
 
     val innerAlpha = when {
-        isSpeaking -> 0.70f
-        isPlayingMusic -> 0.55f
-        isEnabled -> 0.30f
-        else -> 0.0f
+        !isEnabled -> 0.0f
+        isHighNoise -> 0.75f
+        isWaveActive -> 0.50f
+        else -> 0.22f
     }
 
     Box(
-        modifier = modifier.size(baseSize * 1.85f),
+        modifier = modifier.size(baseSize * 2.1f),
         contentAlignment = Alignment.Center
     ) {
-        // Outer Ring 3
-        Box(
-            modifier = Modifier
-                .size(baseSize * 1.6f)
-                .scale(outerScale)
-                .background(
-                    color = CockpitPrimaryContainer.copy(alpha = outerAlpha),
-                    shape = CircleShape
-                )
-        )
+        // Onda 3: Exterior (Onda expansiva amplia o armónica)
+        if (isEnabled && isWaveActive) {
+            Box(
+                modifier = Modifier
+                    .size(baseSize * 1.75f)
+                    .scale(outerScale)
+                    .background(
+                        color = CockpitPrimaryContainer.copy(alpha = outerAlpha),
+                        shape = CircleShape
+                    )
+            )
+        }
 
-        // Mid Ring 2 (Reactivo a la modulación de voz o compás musical)
-        val dynamicModulation = if (isSpeaking) (waveState.intensity * 0.18f) else 0f
-        Box(
-            modifier = Modifier
-                .size(baseSize * 1.35f)
-                .scale(midScale + dynamicModulation)
-                .background(
-                    color = CockpitPrimaryContainer.copy(alpha = midAlpha),
-                    shape = CircleShape
-                )
-        )
+        // Onda 2: Media (Cuerpo resonante reactivo)
+        if (isEnabled) {
+            val responsiveBoost = if (isHighNoise) (dynamicIntensity * 0.15f) else 0f
+            Box(
+                modifier = Modifier
+                    .size(baseSize * 1.42f)
+                    .scale(midScale + responsiveBoost)
+                    .background(
+                        color = CockpitPrimaryContainer.copy(alpha = midAlpha),
+                        shape = CircleShape
+                    )
+            )
+        }
 
-        // Inner Ring 1 (Halo luminoso cercano permanente)
+        // Onda 1: Interior (Halo luminoso cercano de contorno)
         Box(
             modifier = Modifier
-                .size(baseSize * 1.15f)
+                .size(baseSize * 1.16f)
                 .background(
                     color = CockpitPrimaryContainer.copy(alpha = innerAlpha),
                     shape = CircleShape

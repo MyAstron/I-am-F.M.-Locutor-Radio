@@ -211,32 +211,8 @@ fun WazeBasicControlBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${trackInfo.formattedPosition} / ${trackInfo.formattedDuration}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CockpitPrimary
-                        )
-                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Progress Bar
-            LinearProgressIndicator(
-                progress = { trackInfo.progressFraction },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(999.dp)),
-                color = CockpitPrimaryContainer,
-                trackColor = CockpitSurfaceContainerLowest
-            )
 
             Spacer(modifier = Modifier.height(14.dp))
 

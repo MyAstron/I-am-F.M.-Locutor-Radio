@@ -86,14 +86,22 @@ app/src/main/java/locutor/cristopher/sic/
   4. **Cuarto: Servicio de 2do plano** (Tarjeta de telemetría con conmutador interactivo segmentado `[ ON ] [ OFF ] [ AUTO ]`).
   5. **Quinto: Lo técnico de la música y próximo anuncio** (Bento Grid con medidores de ducking, cuenta regresiva y horario).
 
-### 2.5 Sincronización Reactiva de Clima y Frases (PhraseCrudRepository)
-- **Desactivación automática:** Al desactivar el interruptor de "Mención de Clima Local", `PhraseCrudRepository.onWeatherSettingChanged(false)` recorre el catálogo y desactiva (`isActive = false`) de manera automática todas las frases que contengan la variable `{clima}`.
-- **Filtro en rotación:** Al seleccionar frases en `getNextNonRepeatingPhrase(weatherEnabled)`, las frases que incluyan clima son ignoradas si el clima está inactivo.
+### 2.5 Sincronización Reactiva Bidireccional de Clima y Frases (PhraseCrudRepository)
+- **Desactivación y reactivación automática:** Al desactivar el interruptor de "Mención de Clima Local", `PhraseCrudRepository.onWeatherSettingChanged(false)` desactiva (`isActive = false`) las frases con `{clima}`. Al volver a activarlo (`onWeatherSettingChanged(true)`), **reactiva automáticamente** (`isActive = true`) dichas frases en el catálogo.
 
-### 2.6 Mosaico Interactivo de Locutores y Transición Horizontal (RadioSettingsScreen)
-- **Mosaico compacto:** Los 7 presets de radio FM se presentan inicialmente como una fila/mosaico de avatares con íconos vectoriales distintivos.
-- **Transición expandida:** Al pulsar cualquier preset, `AnimatedContent` realiza una animación fluida hacia una tarjeta horizontal de ancho completo con avatar de alto contraste, descripción del timbre, badge "ACTIVO" y botón de prueba rápida en vivo.
+### 2.6 Mosaico con Scroll Horizontal Invisible de Locutores (RadioSettingsScreen)
+- **Carrusel horizontal de modulaciones:** Los 7 presets de radio FM se despliegan en un `Row` con `horizontalScroll(rememberScrollState())` que no dibuja barras visuales de scroll. Cada tarjeta contiene el avatar, nombre, descripción y valores específicos de Tono (Pitch) y Velocidad (Speed).
 
-### 2.7 Auditoría de Lectura de Notificaciones en Pestaña de Servicio (RadioServiceScreen)
-- **Alerta prioritaria:** Si `viewModel.isNotificationAccessGranted()` retorna `false`, se despliega una tarjeta destacada en la parte superior del tab de Servicio con llamada a la acción directa hacia `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`.
-- **Lista de auditoría:** Muestra en tiempo real el estado verificado de los 4 permisos críticos de Android (MediaSession, Servicio Foreground, POST_NOTIFICATIONS y Foco de Audio).
+### 2.7 Navegación Ágil con Secciones Colapsables
+- Para evitar la sobrecarga visual, todas las funciones auxiliares se convirtieron en componentes colapsables con encabezado interactivo, indicador de estado y flecha chevron (`AnimatedVisibility`):
+  - En **Cabina**: Simulador de cabina, Servicio en 2do plano y Métricas técnicas son colapsables. **La información de la canción y la reproducción en cabina permanecen siempre fijas y visibles**.
+  - En **Ajustes**: Estilos de locutor, Horarios y frecuencia, Afinación de modulación, Voces del sistema, Plantilla del script y Fade/Ducking cuentan con colapso independiente.
+
+### 2.8 Ondas Sonoras Responsivas (SoundWaveRing)
+- **Dinámica acustica adaptable:** El componente calcula `dynamicIntensity` y evalúa el umbral `isHighNoise`:
+  - **Con bulla / volumen alto:** Las ondas exteriores e intermedias se amplifican hasta un factor de escala de 2.15x con curvas de aceleración `FastOutSlowInEasing` y pulsos rápidos (420-550ms).
+  - **En reposo o calma:** Las ondas se mantienen armónicas, suaves y compactas (1.12x - 1.28x) con transiciones `LinearOutSlowInEasing` y pulsación pausada (1200-1600ms).
+
+### 2.9 Barra de Reproducción Depurada y Cabecera Limpia
+- En `WazeBasicControlBar.kt`, se removió la barra lineal de progreso y el cronómetro de duración del tema, ofreciendo una vista minimalista y resistente a desincronizaciones de streaming.
+- En `MainActivity.kt`, se removió el ícono de perfil de usuario de la esquina superior derecha, despejando la barra superior.

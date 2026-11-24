@@ -268,22 +268,6 @@ fun MainAppScaffold(
                                 )
                             }
                         }
-
-                        // Icono de perfil de cabina
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(CockpitPrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Person,
-                                contentDescription = "Perfil",
-                                tint = CockpitOnPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

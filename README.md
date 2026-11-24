@@ -11,41 +11,34 @@ I AM-FM: Locutor Radio es una aplicacion nativa para Android (Kotlin y Jetpack C
 ## Especificaciones de Uso y Mantenimiento
 - **Plataforma y compilacion:** Android (minSdk 26), desarrollado y compilado mediante flujo CLI con Android SDK y Gradle (JavaVersion 17 con jvmToolchain 21).
 - **Referencia visual e icono:** Basado en los archivos HTML de stitch/ y en el icono oficial stitch/icon.png integrado en los drawables de la aplicacion.
-- **Filtro exclusivo de apps instaladas:** El selector de vinculacion lista unicamente las aplicaciones de musica instaladas en el dispositivo, filtrando paquetes no presentes y deshabilitando el boton de apertura si se elige "Deteccion Automatica".
-- **Locucion horaria exacta y sin repeticion:** Calculo en vivo del minuto exacto (minuto :00 en punto, :01 1 minuto, :15 y cuarto, :30 y media) con saneamiento integral contra duplicidades ("en punto en punto").
-- **Horarios de anuncio personalizables:** Cuatro modalidades configurables: por defecto FM (hora en punto al terminar tema o en reloj), cada N canciones reproducidas, interrupcion inmediata en vivo a la hora en punto, y seleccion de horas programadas fijas del dia.
-- **Jerarquia visual en Main:** Reorganizacion de la pantalla principal en cinco niveles: 1) Cancion actual, 2) Locucion y control maestro, 3) Simulador de cabina con disparo en vivo, 4) Servicio en 2do plano con selector interactivo ON / OFF / AUTO, y 5) Telemetria tecnica y proximo anuncio.
-- **Sincronizacion de clima y frases:** Al desactivar la mencion de clima en la aplicacion, se pausan automaticamente las frases que contienen etiquetas de clima.
-- **Mosaico interactivo de locutores:** Mosaico de avatares con transicion animada fluida hacia ficha tecnica horizontal completa con prueba de voz en directo.
-- **Auditoria de permisos en Servicio:** Apartado destacado y persistente en la pestana de Servicio para conceder el acceso a notificaciones si no estuviera activo.
+- **Cabecera despejada sin icono de usuario:** Barra superior simplificada sin el icono superfluo de perfil, optimizando el espacio visual en pantalla.
+- **Reproductor minimalista sin barra ni duracion:** La tarjeta de cancion actual presenta exclusivamente titulo, artista, album, controles de transporte y boton vincular, prescindiendo de la barra de progreso y el cronometro de duracion.
+- **Ondas reactivas y responsivas:** Animacion acustica adaptable que genera expansiones amplias y energicas ante mayor volumen o sonido ("bulla") y oscilaciones suaves y armonicas en reposo o volumen bajo.
+- **Reactivacion bidireccional de frases de clima:** Al apagar el clima se pausan las frases que lo mencionan, y al encenderlo nuevamente se reactivan de forma automatica en el catalogo.
+- **Scroll horizontal de locutores y modulaciones:** Carrusel horizontal fluido para navegar por los 7 estilos de radio FM y sus parametros de tono y velocidad, sin barras de desplazamiento visibles.
+- **Secciones colapsables para navegacion agil:** Todas las funciones auxiliares (simulador, servicio en 2do plano, metricas tecnicas, configuraciones avanzadas) cuentan con encabezados plegables, manteniendo fijas y siempre visibles unicamente la informacion de la cancion y la emision central en cabina.
 
 ## Guia de Usuario y Funcionamiento General
-1. **Vinculacion limpia:** Abre el selector de apps; solo veras las instaladas en tu terminal. Si seleccionas Deteccion Automatica, el sistema gestionara la captura en tiempo real sin requerir abrir una app fija.
-2. **Reorganizacion visual de Cabina:**
-   - Visualiza en primer plano la cancion actual y sus controles estilo Waze.
-   - Gestiona el estado de locucion en antena con el boton central maestro.
-   - Prueba la atenuacion y locucion de inmediato con el Simulador de Cabina.
-   - Ajusta el servicio en segundo plano mediante el conmutador interactivo ON / OFF / AUTO.
-   - Consulta el vumetro de audio y la cuenta regresiva del proximo anuncio.
-3. **Programacion de anuncios en Ajustes:** Elige entre anunciar cada N temas, interrumpir a la hora exacta, respetar el modo FM por defecto o programar horas fijas del dia.
-4. **Mosaico y estilos de voz:** Toca los iconos en mosaico para desplegar en formato horizontal la ficha del locutor, escuchar una prueba o afinar tono y velocidad.
-5. **Gestion de frases:** Activa o desactiva plantillas sin riesgo de repeticion. Si apagas el clima, las frases climaticas se pausan automaticamente.
-6. **Pestana de Servicio:** Verifica el uptime, la memoria y activa el permiso de notificaciones desde el banner prioritario si aun no fue concedido.
+1. **Cabina limpia y ergonomica:** Consulta la cancion en curso sin barras de duracion distractoras y comanda la reproduccion con anterior, pausa/play y siguiente.
+2. **Navegacion colapsable:** Pliega o despliega el Simulador de Cabina, el Servicio en 2do Plano o las Metricas Tecnicas tocando sus encabezados.
+3. **Ondas dinamicas en cabina:** Observa como las ondas concentricas del boton central se expanden ampliamente ante mayor intensidad sonora y se tornan sutiles y armonicas cuando la musica o la voz es pausada.
+4. **Carrusel de locutores y modulacion:** En Ajustes, desliza horizontalmente entre los presets de radio FM para examinar sus tonos y velocidades sin ver barras de scroll en pantalla.
+5. **Gestion reactiva de clima:** Al activar el interruptor de Clima Local, las frases que contienen `{clima}` se reactivan automaticamente para sonar en antena.
+6. **Configuraciones organizadas:** En la pestana de Ajustes, despliega unicamente el modulo que desees editar (horarios, afinacion fina, voces nativas, ducking) manteniendo el resto colapsado para un acceso instantaneo.
 
 ## Implementacion Tecnica
-- **MusicServiceLinker:** Depura la lista de reproductores conocidos contrastando `packageManager.getPackageInfo` e `Intent.CATEGORY_APP_MUSIC`, entregando unicamente apps instaladas y bloqueando aperturas invalidas en modo automatico.
-- **GenerateRadioScriptUseCase:** Evalua el minuto y la hora exacta en tiempo real para modular la frase ("la 1 y 1 minuto", "las 2 de la tarde en punto"), eliminando de raiz duplicidades en la plantilla.
-- **EvaluateHourlyAnnouncementUseCase:** Motor multicriterio que soporta los modos DEFAULT_TOP_OF_HOUR, SONG_COUNT, EXACT_TIME_INTERRUPT y CUSTOM_HOURS.
-- **PhraseCrudRepository:** Incorpora sincronizacion de eventos de clima que desactiva de forma automatica las plantillas con etiquetas `{clima}` cuando el proveedor de clima se deshabilita.
-- **RadioMainScreen y RadioSettingsScreen:** Implementan la jerarquia visual requerida con selector segmentado de servicio (ON/OFF/AUTO) y transiciones animadas con AnimatedContent para los perfiles de locucion.
+- **SoundWaveRing:** Modulacion responsiva basada en `dynamicIntensity` y factor de ruido acustico (`isHighNoise`), escalando el radio hasta 2.1x con aceleracion FastOutSlow en alta energia y atenuando a 1.12x con curvas armonicas en baja intensidad.
+- **WazeBasicControlBar:** Estructura depurada con eliminacion de `LinearProgressIndicator` y etiquetas temporales de posicion/duracion para un diseno limpio y libre de desincronizaciones de streaming.
+- **PhraseCrudRepository:** `onWeatherSettingChanged(Boolean)` aplica actualizacion bidireccional sobre el StateFlow de frases, pausando con clima inactivo y restaurando a `isActive = true` al reactivarse el servicio meteorologico.
+- **RadioSettingsScreen y RadioMainScreen:** Incorporacion de contenedores `AnimatedVisibility` con `expandVertically()` y `shrinkVertically()` gobernados por estados booleanos independientes, junto a `Modifier.horizontalScroll()` sin decoradores de scrollbar.
 
 ## Manual de Desarrollo
 Pendiente de redactar al finalizar todas las fases del proyecto.
 
 ### Cambio Principal de Esta Version (Evaluacion Progresiva)
-- **Que era:** Una version con deteccion de apps donde aparecian servicios no instalados, boton de abrir app activo aun en deteccion automatica, anuncios limitados a la hora en punto, locucion que decia "en punto" a las :01 con el bug de doble "en punto en punto", frases climaticas que seguian sonando con clima apagado, locutores en lista vertical estatica y una pantalla principal sin la jerarquia ergonomica solicitada.
-- **Que es:** Una arquitectura refinada con filtro estricto de apps instaladas, boton de apertura inteligentemente deshabilitado en modo automatico, calculo riguroso de la hora y minuto exactos sin repeticion, 4 modalidades de horario y frecuencia de anuncios, sincronizacion reactiva de frases al apagar clima, mosaico de locutores interactivo con expansion horizontal completa, conmutador segmentado ON/OFF/AUTO para el servicio en 2do plano, y pantalla principal reorganizada exactamente segun las prioridades de uso en cabina.
-- **Que sera:** En la siguiente iteracion, soporte de micro-audios pregrabados de sintonia tipo jingle de radio FM y generador de dialogos contextuales mediante inteligencia artificial local.
+- **Que era:** Una interfaz con un icono de perfil de usuario sobrante en la esquina superior derecha, una tarjeta musical recargada con barra de progreso y cronometros de duracion, ondas estaticas que no diferenciaban volumen alto de volumen bajo, frases climaticas que quedaban apagadas permanentemente al reactivar el clima, locutores en lista larga con scrollbar visible y pantallas saturadas donde era necesario desplazarse excesivamente para encontrar cada ajuste.
+- **Que es:** Una arquitectura visual limpia y modular, con cabecera despejada sin icono de usuario, reproductor musical libre de barras de duracion, ondas acusticas responsivas que amplian su radio ante la bulla y se vuelven armonicas en calma, reactivacion automatica de frases de clima al volver a encenderlo, carrusel horizontal invisible para los estilos de locutor y secciones colapsables en todas las funciones secundarias garantizando que solo la musica y la cabina permanezcan siempre fijas.
+- **Que sera:** En la siguiente iteracion, integracion de ecualizador visual FFT conectado directamente al bus de audio nativo y perfiles de viaje automatizados para autopista, ciudad y noche.
 
 ## Creditos
 - **Autor:** MyAstron
