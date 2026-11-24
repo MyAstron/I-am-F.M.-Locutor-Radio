@@ -6,47 +6,51 @@
 [![CLI Workflow](https://img.shields.io/badge/Workflow-CLI-0F172A?style=flat&logo=gnubash&logoColor=white)](#)
 
 ## Descripcion del Proyecto
-I AM-FM: Locutor Radio es una aplicacion nativa para Android (Kotlin y Jetpack Compose) con interfaz estilo Waze que controla de forma basica la reproduccion activa de otras apps de musica en el telefono (sin exigir cuentas Premium ni integrar APIs musicales cerradas) e incorpora un locutor por voz que interviene al terminar una cancion cuando coincide con una hora exacta, aplicando ducking nativo transitorio exclusivo para la musica sin alterar el volumen general del dispositivo.
+I AM-FM: Locutor Radio es una aplicacion nativa para Android (Kotlin y Jetpack Compose) con interfaz estilo Waze que controla de forma basica la reproduccion activa de otras apps de musica en el telefono (sin exigir cuentas Premium ni integrar APIs musicales cerradas) e incorpora un copiloto locutor por voz personalizable en horarios y estilos de cabina, aplicando ducking nativo transitorio exclusivo para la musica sin alterar el volumen general del dispositivo.
 
 ## Especificaciones de Uso y Mantenimiento
 - **Plataforma y compilacion:** Android (minSdk 26), desarrollado y compilado mediante flujo CLI con Android SDK y Gradle (JavaVersion 17 con jvmToolchain 21).
 - **Referencia visual e icono:** Basado en los archivos HTML de stitch/ y en el icono oficial stitch/icon.png integrado en los drawables de la aplicacion.
-- **Acceso ubicuo a Vincular (3 Puntos Clave):** Boton o chip Vincular disponible en la barra superior (TopAppBar), en la cabecera de la tarjeta estilo Waze y en la tarjeta destacada de la pantalla de Servicio.
-- **Metadatos y caratula en vivo:** Lee y presenta titulo, artista, album y caratula oficial (Bitmap directo o URI decodificado) de YouTube Music, Spotify, Apple Music y reproductores locales.
-- **Sincronizacion fidedigna de Play y Pausa:** Estado derivado estrictamente de PlaybackState en tiempo real con invocacion a transportControls.pause() y transportControls.play(), eliminando desincronizaciones de estado invertido.
-- **Ducking exclusivo sobre musica:** Utiliza foco de audio transitorio (AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK con USAGE_ASSISTANCE_NAVIGATION_GUIDANCE y CONTENT_TYPE_SPEECH) para atenuar la musica durante la locucion sin tocar el volumen del sistema ni modificar STREAM_RING o STREAM_MUSIC global.
-- **Ondas reactivas con alternancia de icono:** Anillos de sonido concentricos activos tanto durante la locucion como en reproduccion musical, alternando dinamicamente entre el icono de microfono (Locutor en vivo), ecualizador grafico (Musica en ruta) y radio/apagado.
-- **Voz, frases y clima:** Soporta variaciones de voz, catalogo CRUD de frases sin repetir la ultima usada y mencion de clima local unicamente con permiso explicito del usuario.
-- **Mantenimiento:** Mantener desacoplados el enlace de sesion multimedia, el controlador de ducking, el repositorio CRUD de frases, el motor de voz y el proveedor opcional de clima.
+- **Filtro exclusivo de apps instaladas:** El selector de vinculacion lista unicamente las aplicaciones de musica instaladas en el dispositivo, filtrando paquetes no presentes y deshabilitando el boton de apertura si se elige "Deteccion Automatica".
+- **Locucion horaria exacta y sin repeticion:** Calculo en vivo del minuto exacto (minuto :00 en punto, :01 1 minuto, :15 y cuarto, :30 y media) con saneamiento integral contra duplicidades ("en punto en punto").
+- **Horarios de anuncio personalizables:** Cuatro modalidades configurables: por defecto FM (hora en punto al terminar tema o en reloj), cada N canciones reproducidas, interrupcion inmediata en vivo a la hora en punto, y seleccion de horas programadas fijas del dia.
+- **Jerarquia visual en Main:** Reorganizacion de la pantalla principal en cinco niveles: 1) Cancion actual, 2) Locucion y control maestro, 3) Simulador de cabina con disparo en vivo, 4) Servicio en 2do plano con selector interactivo ON / OFF / AUTO, y 5) Telemetria tecnica y proximo anuncio.
+- **Sincronizacion de clima y frases:** Al desactivar la mencion de clima en la aplicacion, se pausan automaticamente las frases que contienen etiquetas de clima.
+- **Mosaico interactivo de locutores:** Mosaico de avatares con transicion animada fluida hacia ficha tecnica horizontal completa con prueba de voz en directo.
+- **Auditoria de permisos en Servicio:** Apartado destacado y persistente en la pestana de Servicio para conceder el acceso a notificaciones si no estuviera activo.
 
 ## Guia de Usuario y Funcionamiento General
-1. **Permisos y vinculacion ubicua:** Concede acceso a notificaciones y pulsa Vincular desde la barra superior, la tarjeta Waze o la pestana de Servicio para seleccionar o abrir tu reproductor preferido (Spotify, YouTube Music, etc.).
-2. **Caratula y metadatos en directo:** Disfruta de la visualizacion del album y la caratula original en la tarjeta de reproduccion.
-3. **Controles sincronizados:** Controla Anterior, Pausa/Reproduccion y Siguiente sabiendo que el boton siempre muestra el estado veridico de tu app de musica.
-4. **Boton central y ondas reactivas:** Observa los anillos de audio continuos tanto cuando suena una cancion (icono de musica) como cuando el locutor habla (icono de microfono), cambiando de estado de forma reactiva.
-5. **Ducking limpio tipo WhatsApp/Waze:** Al dar la hora o emitir una locucion, la musica baja de volumen suavemente sin alterar la barra de volumen general del telefono, restaurandose al culminar.
-6. **Menu de frases (CRUD) y clima:** Personaliza tus locuciones con variables dinamicas sin repeticiones consecutivas y anade clima local si otorgas el permiso correspondiente.
+1. **Vinculacion limpia:** Abre el selector de apps; solo veras las instaladas en tu terminal. Si seleccionas Deteccion Automatica, el sistema gestionara la captura en tiempo real sin requerir abrir una app fija.
+2. **Reorganizacion visual de Cabina:**
+   - Visualiza en primer plano la cancion actual y sus controles estilo Waze.
+   - Gestiona el estado de locucion en antena con el boton central maestro.
+   - Prueba la atenuacion y locucion de inmediato con el Simulador de Cabina.
+   - Ajusta el servicio en segundo plano mediante el conmutador interactivo ON / OFF / AUTO.
+   - Consulta el vumetro de audio y la cuenta regresiva del proximo anuncio.
+3. **Programacion de anuncios en Ajustes:** Elige entre anunciar cada N temas, interrumpir a la hora exacta, respetar el modo FM por defecto o programar horas fijas del dia.
+4. **Mosaico y estilos de voz:** Toca los iconos en mosaico para desplegar en formato horizontal la ficha del locutor, escuchar una prueba o afinar tono y velocidad.
+5. **Gestion de frases:** Activa o desactiva plantillas sin riesgo de repeticion. Si apagas el clima, las frases climaticas se pausan automaticamente.
+6. **Pestana de Servicio:** Verifica el uptime, la memoria y activa el permiso de notificaciones desde el banner prioritario si aun no fue concedido.
 
 ## Implementacion Tecnica
-- **Enlace y control de sesiones:** MusicServiceLinker y MediaSessionRepository gestionan la deteccion de aplicaciones instaladas, el enlace prioritario de MediaController y la lectura de metadatos (titulo, artista, album y caratula Bitmap/URI).
-- **Control idempotente de reproduccion:** MediaSessionRepository evalua el PlaybackState.STATE_PLAYING del MediaController para ejecutar pause() o play() sin invertir estados localmente, sincronizandose con onPlaybackStateChanged.
-- **Ducking nativo sin impacto en volumen global:** AudioFadeController solicita foco de audio transitorio con atenuacion voluntaria (setWillPauseWhenDucked(false)) y restaura el nivel al finalizar con abandonAudioFocusRequest, evitando mutaciones directas sobre setStreamVolume.
-- **Modulacion visual y conmutacion de iconos:** SoundWaveRing y CentralAnnouncerPowerButton coordinan las animaciones concentricas para senales de voz y de musica, alternando los iconos de microfono, ecualizador musical y radio.
-- **CRUD y rotacion de frases:** PhraseCrudRepository almacena las frases del usuario y selecciona una distinta a la anterior (lastUsedPhraseId), integrando variables dinamicas.
-- **Clima local condicionado a permiso:** LocalWeatherProvider evalua los permisos de localizacion antes de consultar las condiciones meteorologicas, omitiendo limpiamente la variable si el permiso no esta concedido.
+- **MusicServiceLinker:** Depura la lista de reproductores conocidos contrastando `packageManager.getPackageInfo` e `Intent.CATEGORY_APP_MUSIC`, entregando unicamente apps instaladas y bloqueando aperturas invalidas en modo automatico.
+- **GenerateRadioScriptUseCase:** Evalua el minuto y la hora exacta en tiempo real para modular la frase ("la 1 y 1 minuto", "las 2 de la tarde en punto"), eliminando de raiz duplicidades en la plantilla.
+- **EvaluateHourlyAnnouncementUseCase:** Motor multicriterio que soporta los modos DEFAULT_TOP_OF_HOUR, SONG_COUNT, EXACT_TIME_INTERRUPT y CUSTOM_HOURS.
+- **PhraseCrudRepository:** Incorpora sincronizacion de eventos de clima que desactiva de forma automatica las plantillas con etiquetas `{clima}` cuando el proveedor de clima se deshabilita.
+- **RadioMainScreen y RadioSettingsScreen:** Implementan la jerarquia visual requerida con selector segmentado de servicio (ON/OFF/AUTO) y transiciones animadas con AnimatedContent para los perfiles de locucion.
 
 ## Manual de Desarrollo
 Pendiente de redactar al finalizar todas las fases del proyecto.
 
 ### Cambio Principal de Esta Version (Evaluacion Progresiva)
-- **Que era:** Una version donde la tarjeta no mostraba caratula ni album de YouTube Music, el boton de Play/Pausa sufria desincronizaciones de estado invertido, y el boton de vincular solo existia en la tarjeta principal.
-- **Que es:** Una cabina enriquecida con lectura completa de titulo, artista, album y caratula (Bitmap y URI) de YouTube Music y reproductores externos, Play/Pausa sincronizado fidedignamente mediante transportControls, boton Vincular en tres accesos estrategicos (Barra superior, Tarjeta Waze y Pantalla de Servicio), ducking transitorio nativo y ondas reactivas duales.
-- **Que sera:** En la siguiente iteracion, soporte de sincronizacion con APIs meteorologicas remotas en tiempo real y conexion con modelos de lenguaje ligeros en el dispositivo para generar comentarios contextuales de trafico o anecdotas musicales.
+- **Que era:** Una version con deteccion de apps donde aparecian servicios no instalados, boton de abrir app activo aun en deteccion automatica, anuncios limitados a la hora en punto, locucion que decia "en punto" a las :01 con el bug de doble "en punto en punto", frases climaticas que seguian sonando con clima apagado, locutores en lista vertical estatica y una pantalla principal sin la jerarquia ergonomica solicitada.
+- **Que es:** Una arquitectura refinada con filtro estricto de apps instaladas, boton de apertura inteligentemente deshabilitado en modo automatico, calculo riguroso de la hora y minuto exactos sin repeticion, 4 modalidades de horario y frecuencia de anuncios, sincronizacion reactiva de frases al apagar clima, mosaico de locutores interactivo con expansion horizontal completa, conmutador segmentado ON/OFF/AUTO para el servicio en 2do plano, y pantalla principal reorganizada exactamente segun las prioridades de uso en cabina.
+- **Que sera:** En la siguiente iteracion, soporte de micro-audios pregrabados de sintonia tipo jingle de radio FM y generador de dialogos contextuales mediante inteligencia artificial local.
 
 ## Creditos
 - **Autor:** MyAstron
 - **Agentes de Inteligencia Artificial:**
-- Stitch
-- Gemini
-- Antigravity (CLI)
-- AI Studio
+  - Stitch
+  - Gemini
+  - Antigravity (CLI)
+  - AI Studio

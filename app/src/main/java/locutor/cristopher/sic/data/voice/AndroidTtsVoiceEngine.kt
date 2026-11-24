@@ -32,6 +32,9 @@ class AndroidTtsVoiceEngine(
     private val _waveState = MutableStateFlow(AudioWaveState())
     override val waveState: StateFlow<AudioWaveState> = _waveState.asStateFlow()
 
+    private val _availableVoices = MutableStateFlow<List<SystemVoiceInfo>>(emptyList())
+    override val availableVoices: StateFlow<List<SystemVoiceInfo>> = _availableVoices.asStateFlow()
+
     private var waveAnimationJob: Job? = null
 
     override fun initialize(onReady: () -> Unit) {
@@ -47,7 +50,6 @@ class AndroidTtsVoiceEngine(
         if (status == TextToSpeech.SUCCESS) {
             val result = tts?.setLanguage(Locale.forLanguageTag("es-ES"))
             if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                // Si español de España no está, probar español genérico o default del sistema
                 tts?.setLanguage(Locale.forLanguageTag("es"))
             }
 
@@ -58,12 +60,41 @@ class AndroidTtsVoiceEngine(
                 .build()
             tts?.setAudioAttributes(audioAttributes)
 
+            // Cargar lista de voces del sistema disponibles
+            loadAvailableVoices()
+
             isInitialized = true
             pendingReadyCallback?.invoke()
             pendingReadyCallback = null
-            Log.d("AndroidTtsVoiceEngine", "TextToSpeech inicializado con éxito como USAGE_ASSISTANCE_NAVIGATION_GUIDANCE.")
+            Log.d("AndroidTtsVoiceEngine", "TextToSpeech inicializado con éxito.")
         } else {
             Log.e("AndroidTtsVoiceEngine", "Error al inicializar TextToSpeech. Estado: $status")
+        }
+    }
+
+    private fun loadAvailableVoices() {
+        try {
+            val voiceList = mutableListOf<SystemVoiceInfo>()
+            tts?.voices?.forEach { voice ->
+                val loc = voice.locale
+                // Filtrar preferentemente voces en español o del sistema
+                if (loc.language.startsWith("es") || loc == Locale.getDefault()) {
+                    val country = loc.displayCountry.ifBlank { loc.displayName }
+                    val shortName = voice.name.substringAfterLast("-").take(8)
+                    voiceList.add(
+                        SystemVoiceInfo(
+                            name = voice.name,
+                            displayName = "$country · $shortName",
+                            locale = loc.toLanguageTag()
+                        )
+                    )
+                }
+            }
+            if (voiceList.isNotEmpty()) {
+                _availableVoices.value = voiceList.distinctBy { it.name }
+            }
+        } catch (e: Exception) {
+            Log.w("AndroidTtsVoiceEngine", "No se pudieron listar las voces del sistema", e)
         }
     }
 
@@ -71,6 +102,7 @@ class AndroidTtsVoiceEngine(
         text: String,
         pitch: Float,
         speechRate: Float,
+        voiceName: String?,
         onStart: () -> Unit,
         onDone: () -> Unit,
         onError: (String) -> Unit
@@ -78,7 +110,7 @@ class AndroidTtsVoiceEngine(
         if (!isInitialized || tts == null) {
             initialize {
                 scope.launch {
-                    speak(text, pitch, speechRate, onStart, onDone, onError)
+                    speak(text, pitch, speechRate, voiceName, onStart, onDone, onError)
                 }
             }
             return
@@ -89,6 +121,18 @@ class AndroidTtsVoiceEngine(
 
             tts?.setPitch(pitch)
             tts?.setSpeechRate(speechRate)
+
+            // Aplicar voz específica si fue seleccionada por el usuario
+            if (!voiceName.isNullOrBlank()) {
+                try {
+                    val targetVoice = tts?.voices?.find { it.name == voiceName }
+                    if (targetVoice != null) {
+                        tts?.voice = targetVoice
+                    }
+                } catch (e: Exception) {
+                    Log.w("AndroidTtsVoiceEngine", "No se pudo asignar voz $voiceName", e)
+                }
+            }
 
             tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(id: String?) {
@@ -151,37 +195,39 @@ class AndroidTtsVoiceEngine(
                     continuation.resume(Unit)
                 }
             }
-
-            continuation.invokeOnCancellation {
-                stop()
-            }
         }
     }
 
     private fun startWaveAnimation() {
         waveAnimationJob?.cancel()
         waveAnimationJob = scope.launch {
-            _waveState.value = AudioWaveState(intensity = 0.5f, isEmitting = true, statusText = "Transmitiendo")
-            val intensities = listOf(0.4f, 0.85f, 0.6f, 1.0f, 0.75f, 0.9f, 0.5f, 0.95f)
-            var index = 0
+            var counter = 0
             while (isActive) {
-                val current = intensities[index % intensities.size]
-                _waveState.value = _waveState.value.copy(intensity = current)
-                index++
-                delay(120)
+                val cycle = (counter % 10) / 10f
+                val amplitude = 0.5f + (0.5f * kotlin.math.sin(cycle * Math.PI.toFloat()))
+                _waveState.value = AudioWaveState(
+                    intensity = amplitude,
+                    isEmitting = true,
+                    statusText = "Transmitiendo"
+                )
+                counter++
+                delay(80)
             }
         }
     }
 
     private fun stopWaveAnimation() {
         waveAnimationJob?.cancel()
-        waveAnimationJob = null
-        _waveState.value = AudioWaveState(intensity = 0f, isEmitting = false, statusText = "En espera")
+        _waveState.value = AudioWaveState(
+            intensity = 0f,
+            isEmitting = false,
+            statusText = "En espera"
+        )
     }
 
     override fun stop() {
-        stopWaveAnimation()
         tts?.stop()
+        stopWaveAnimation()
     }
 
     override fun release() {

@@ -5,6 +5,7 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,7 +19,9 @@ import locutor.cristopher.sic.data.voice.AndroidTtsVoiceEngine
 import locutor.cristopher.sic.data.voice.VoiceEngine
 import locutor.cristopher.sic.data.weather.LocalWeatherProvider
 import locutor.cristopher.sic.domain.model.AnnouncementLog
+import locutor.cristopher.sic.domain.model.AnnouncementScheduleMode
 import locutor.cristopher.sic.domain.model.AnnouncerConfig
+import locutor.cristopher.sic.domain.model.BackgroundServiceMode
 import locutor.cristopher.sic.domain.model.TrackInfo
 import locutor.cristopher.sic.domain.usecase.EvaluateHourlyAnnouncementUseCase
 import locutor.cristopher.sic.domain.usecase.GenerateRadioScriptUseCase
@@ -64,26 +67,83 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
     private val _serviceStartTime = System.currentTimeMillis()
     val serviceStartTime: Long get() = _serviceStartTime
 
+    // Contador de canciones reproducidas para el modo de intervalo por número de canciones
+    private var completedSongsCount: Int = 0
+
     init {
         voiceEngine.initialize()
 
-        // Monitorear cambios de canción para evaluar locución horaria
+        // 1. Monitorear cambios de canción para evaluar locución horaria cuando termina un tema
         mediaRepository.setOnTrackChangedListener { previousTrack, currentTrack ->
             onTrackChanged(previousTrack, currentTrack)
+        }
+
+        // 2. Ticker de reloj continuo: asegura que suenen los anuncios a la hora en punto
+        // o según la programación de horarios personalizados incluso sin música sonando.
+        scope.launch {
+            while (true) {
+                delay(2000)
+                checkClockHourlyAnnouncement()
+            }
+        }
+    }
+
+    private fun checkClockHourlyAnnouncement() {
+        val config = preferences.config.value
+        if (config.backgroundServiceMode == BackgroundServiceMode.OFF) return
+
+        // Para reloj continuo revisamos modos horarios (DEFAULT, EXACT_TIME_INTERRUPT, CUSTOM_HOURS)
+        val shouldAnnounce = evaluateHourlyUseCase.shouldAnnounce(
+            isEnabled = config.isEnabled,
+            lastAnnouncedHour = config.lastAnnouncedHour,
+            scheduleMode = config.scheduleMode,
+            customScheduledHours = config.customScheduledHours,
+            completedSongsCount = completedSongsCount,
+            songsInterval = config.songsInterval,
+            isTriggeredBySongEnd = false
+        )
+
+        if (shouldAnnounce && !_isExecutingAnnouncement.value) {
+            val currentHour = evaluateHourlyUseCase.getCurrentHour()
+            preferences.setLastAnnouncedHour(currentHour)
+
+            scope.launch {
+                val current = mediaRepository.currentTrack.value
+                val previous = mediaRepository.previousTrack.value
+                val trackToUse = if (current.hasTrack) current else (previous ?: current)
+                executeAnnouncement(
+                    trackToAnnounce = trackToUse,
+                    isAutomatic = true
+                )
+            }
         }
     }
 
     private fun onTrackChanged(previousTrack: TrackInfo, currentTrack: TrackInfo) {
         val config = preferences.config.value
+        if (config.backgroundServiceMode == BackgroundServiceMode.OFF) return
+
+        if (previousTrack.hasTrack && previousTrack.title != currentTrack.title) {
+            completedSongsCount++
+        }
+
         val shouldAnnounce = evaluateHourlyUseCase.shouldAnnounce(
             isEnabled = config.isEnabled,
-            hasCompletedTrack = previousTrack.hasTrack,
-            lastAnnouncedHour = config.lastAnnouncedHour
+            lastAnnouncedHour = config.lastAnnouncedHour,
+            scheduleMode = config.scheduleMode,
+            customScheduledHours = config.customScheduledHours,
+            completedSongsCount = completedSongsCount,
+            songsInterval = config.songsInterval,
+            isTriggeredBySongEnd = true
         )
 
-        if (shouldAnnounce) {
-            val currentHour = evaluateHourlyUseCase.getCurrentHour()
-            preferences.setLastAnnouncedHour(currentHour)
+        if (shouldAnnounce && !_isExecutingAnnouncement.value) {
+            if (config.scheduleMode == AnnouncementScheduleMode.SONG_COUNT) {
+                completedSongsCount = 0
+            } else {
+                val currentHour = evaluateHourlyUseCase.getCurrentHour()
+                preferences.setLastAnnouncedHour(currentHour)
+            }
 
             scope.launch {
                 executeAnnouncement(
@@ -102,35 +162,43 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
         _isExecutingAnnouncement.value = true
 
         val config = preferences.config.value
+        val weatherEnabled = weatherProvider.isWeatherEnabled.value
 
-        // Selección de frase con rotación anti-repetición desde el CRUD
-        val selectedPhrase = phraseRepository.getNextNonRepeatingPhrase()
-        val weatherText = weatherProvider.getWeatherReport()
+        // Selección de frase con rotación anti-repetición y filtro de clima
+        val selectedPhrase = phraseRepository.getNextNonRepeatingPhrase(weatherEnabled = weatherEnabled)
+        val weatherText = if (weatherEnabled) weatherProvider.getWeatherReport() else ""
 
+        // Se evalúa la hora exacta en este instante
+        val exactNow = Calendar.getInstance()
         val script = scriptUseCase.execute(
             template = selectedPhrase.template,
             trackTitle = trackToAnnounce.title,
             artist = trackToAnnounce.artist,
-            weatherReport = weatherText
+            weatherReport = weatherText,
+            calendar = exactNow
         )
 
-        val calendar = Calendar.getInstance()
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val timeLabel = timeFormat.format(calendar.time)
+        val timeLabel = timeFormat.format(exactNow.time)
+
+        val isMusicPlaying = trackToAnnounce.isPlaying
 
         try {
-            // 1. Fade out / Ducking de la música externa
-            _duckingActive.value = true
-            fadeController.fadeOutForVoice(
-                fadeDurationMs = config.fadeDownDurationMs,
-                duckingDepthPercent = config.duckingDepthPercent
-            )
+            // 1. Ducking de la música externa si hay música reproduciéndose
+            if (isMusicPlaying) {
+                _duckingActive.value = true
+                fadeController.fadeOutForVoice(
+                    fadeDurationMs = config.fadeDownDurationMs,
+                    duckingDepthPercent = config.duckingDepthPercent
+                )
+            }
 
             // 2. Síntesis y locución por voz
             voiceEngine.speak(
                 text = script,
                 pitch = config.pitch,
                 speechRate = config.speechRate,
+                voiceName = config.selectedVoiceName,
                 onStart = {
                     Log.d("RadioEngineCoordinator", "Inició locución: $script")
                 },
@@ -145,8 +213,8 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
             // Registrar en historial
             val newLog = AnnouncementLog(
                 timeLabel = timeLabel,
-                trackTitle = trackToAnnounce.title,
-                artist = trackToAnnounce.artist,
+                trackTitle = if (trackToAnnounce.hasTrack) trackToAnnounce.title else "Sin música (Boletín horario)",
+                artist = if (trackToAnnounce.hasTrack) trackToAnnounce.artist else "Emisión I AM-FM",
                 appName = trackToAnnounce.appName,
                 speechText = script,
                 isAutomatic = isAutomatic,
@@ -156,9 +224,11 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
         } catch (e: Exception) {
             Log.e("RadioEngineCoordinator", "Error durante anuncio", e)
         } finally {
-            // 3. Fade in / Restauración del audio
-            fadeController.fadeInAfterVoice(fadeDurationMs = config.fadeUpDurationMs)
-            _duckingActive.value = false
+            // 3. Fade in / Restauración del audio si estaba sonando música
+            if (isMusicPlaying) {
+                fadeController.fadeInAfterVoice(fadeDurationMs = config.fadeUpDurationMs)
+                _duckingActive.value = false
+            }
             _isExecutingAnnouncement.value = false
         }
     }
@@ -175,15 +245,24 @@ class RadioEngineCoordinator private constructor(private val context: Context) {
         preferences.setEnabled(!current)
     }
 
-    fun updateConfig(config: AnnouncerConfig) {
-        preferences.updateConfig(config)
+    fun updateConfig(newConfig: AnnouncerConfig) {
+        preferences.updateConfig(newConfig)
+    }
+
+    fun setBackgroundServiceMode(mode: BackgroundServiceMode) {
+        preferences.setBackgroundServiceMode(mode)
+    }
+
+    fun setWeatherEnabled(enabled: Boolean) {
+        weatherProvider.setWeatherEnabled(enabled)
+        phraseRepository.onWeatherSettingChanged(enabled)
     }
 
     fun getUptimeFormatted(): String {
-        val diffMs = System.currentTimeMillis() - _serviceStartTime
-        val seconds = (diffMs / 1000) % 60
-        val minutes = (diffMs / (1000 * 60)) % 60
-        val hours = (diffMs / (1000 * 60 * 60))
+        val elapsedMillis = System.currentTimeMillis() - _serviceStartTime
+        val seconds = (elapsedMillis / 1000) % 60
+        val minutes = (elapsedMillis / (1000 * 60)) % 60
+        val hours = (elapsedMillis / (1000 * 60 * 60))
         return String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
     }
 

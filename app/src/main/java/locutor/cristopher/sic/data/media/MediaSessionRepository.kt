@@ -11,6 +11,7 @@ import android.media.session.PlaybackState
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.KeyEvent
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +66,18 @@ class MediaSessionRepository private constructor(private val context: Context) {
 
     fun setOnTrackChangedListener(listener: (previous: TrackInfo, current: TrackInfo) -> Unit) {
         onTrackChangedListener = listener
+    }
+
+    /**
+     * Verifica si el usuario concedió el permiso de Acceso a Notificaciones en Ajustes de Android.
+     */
+    fun isNotificationAccessGranted(): Boolean {
+        val pkgName = context.packageName
+        val flat = Settings.Secure.getString(
+            context.contentResolver,
+            "enabled_notification_listeners"
+        )
+        return flat != null && flat.contains(pkgName)
     }
 
     /**
@@ -130,6 +143,89 @@ class MediaSessionRepository private constructor(private val context: Context) {
     }
 
     /**
+     * Captura información de la canción directamente desde la notificación multimedia
+     * (útil para YouTube Music, Spotify y reproductores donde getActiveSessions pueda demorarse o limitarse).
+     */
+    fun updateFromNotification(
+        packageName: String,
+        title: String,
+        artist: String,
+        album: String,
+        artworkBitmap: Bitmap?,
+        controller: MediaController?
+    ) {
+        val selectedPkg = musicLinker.selectedService.value
+        val isAuto = musicLinker.isAutoDetect()
+
+        if (!isAuto && packageName != selectedPkg) {
+            return
+        }
+
+        if (controller != null && controller != activeController) {
+            try {
+                activeController?.unregisterCallback(controllerCallback)
+            } catch (e: Exception) {
+                Log.w("MediaSessionRepository", "Error desregistrando callback previo", e)
+            }
+            activeController = controller
+            try {
+                activeController?.registerCallback(controllerCallback, mainHandler)
+            } catch (e: Exception) {
+                Log.w("MediaSessionRepository", "Error registrando callback en controller notificado", e)
+            }
+        }
+
+        val meta = activeController?.metadata
+        val state = activeController?.playbackState
+
+        val cleanTitle = meta?.getString(MediaMetadata.METADATA_KEY_TITLE)
+            ?: meta?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
+            ?: title
+
+        val cleanArtist = meta?.getString(MediaMetadata.METADATA_KEY_ARTIST)
+            ?: meta?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
+            ?: artist
+
+        val cleanAlbum = meta?.getString(MediaMetadata.METADATA_KEY_ALBUM)
+            ?: album
+
+        val isPlaying = state?.state == PlaybackState.STATE_PLAYING || (state == null)
+
+        val finalBitmap = artworkBitmap
+            ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: meta?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            ?: _currentTrack.value.albumArtBitmap
+
+        val newTrack = TrackInfo(
+            title = cleanTitle,
+            artist = cleanArtist,
+            album = cleanAlbum,
+            packageName = packageName,
+            appName = PlatformResolver.resolveAppName(packageName),
+            isPlaying = isPlaying,
+            durationMs = meta?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: _currentTrack.value.durationMs,
+            positionMs = state?.position ?: _currentTrack.value.positionMs,
+            playbackState = state?.state ?: PlaybackState.STATE_PLAYING,
+            albumArtBitmap = finalBitmap
+        )
+
+        val oldTrack = _currentTrack.value
+        if (oldTrack.hasTrack && oldTrack.title != newTrack.title && newTrack.hasTrack) {
+            _previousTrack.value = oldTrack
+            onTrackChangedListener?.invoke(oldTrack, newTrack)
+        }
+
+        _currentTrack.value = newTrack
+    }
+
+    fun onNotificationRemoved(packageName: String?) {
+        if (packageName == null) return
+        if (_currentTrack.value.packageName == packageName) {
+            _currentTrack.value = _currentTrack.value.copy(isPlaying = false)
+        }
+    }
+
+    /**
      * Extrae título, artista, álbum y carátula (Bitmap o URI decodificado)
      * compatibles con YouTube Music, Spotify, Apple Music y reproductores locales.
      */
@@ -185,7 +281,7 @@ class MediaSessionRepository private constructor(private val context: Context) {
             positionMs = position,
             playbackState = state?.state ?: 0,
             albumArtUri = artUri,
-            albumArtBitmap = artBitmap
+            albumArtBitmap = artBitmap ?: _currentTrack.value.albumArtBitmap
         )
 
         val oldTrack = _currentTrack.value

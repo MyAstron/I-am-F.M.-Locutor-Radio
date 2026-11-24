@@ -1,8 +1,8 @@
-# Manual Tecnico: I AM-FM Locutor Radio
+# Manual Técnico: I AM-FM Locutor Radio
 
 ## 1. Arquitectura del Sistema
 
-La aplicacion implementa una arquitectura MVVM combinada con Clean Architecture ligera orientada a servicios en segundo plano en Android, ahora con enlace directo de reproductores de musica, rotacion de frases y modulo meteorologico opcional.
+La aplicación implementa una arquitectura MVVM combinada con Clean Architecture ligera orientada a servicios en segundo plano en Android, ahora con enlace directo de reproductores de música, rotación de frases y módulo meteorológico opcional.
 
 ```text
 app/src/main/java/locutor/cristopher/sic/
@@ -56,58 +56,44 @@ app/src/main/java/locutor/cristopher/sic/
     └── RadioServiceScreen.kt
 ```
 
-## 2. Modulos y Correcciones Implementadas
+## 2. Módulos y Correcciones Implementadas
 
-### 2.1 Enlace y Control de Reproduccion (MusicServiceLinker + MediaSessionRepository)
-- **Vinculacion seleccionable:** El usuario puede fijar su reproductor preferido (Spotify, YouTube Music, Apple Music, Deezer, etc.) o activar Deteccion Automatica.
-- **Estrategia dual de comandos:**
-  1. Si `activeController` esta enlazado y disponible, despacha comandos via `transportControls` (`skipToPrevious()`, `play()`/`pause()`, `skipToNext()`).
-  2. Si la sesion aun no se ha enganchado, envia pulsaciones multimedia directas via `AudioManager.dispatchMediaKeyEvent` con `KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE`, `KEYCODE_MEDIA_PREVIOUS` y `KEYCODE_MEDIA_NEXT`.
-- **Apertura de app:** Ofrece un intent directo para lanzar la aplicacion de musica si esta cerrada.
+### 2.1 Enlace y Control de Reproducción (MusicServiceLinker + MediaSessionRepository)
+- **Filtro exclusivo de apps instaladas:** `MusicServiceLinker.getDetectedServices()` evalúa la existencia real en el sistema de cada reproductor (`isAppInstalled()`). Las aplicaciones no instaladas en el terminal son excluidas de la lista.
+- **Deshabilitación inteligente:** En el diálogo de vinculación (`ServiceSelectorDialog`), si el usuario selecciona "Detección Automática" o "Reproductor Local", el botón "Abrir reproductor en teléfono" se deshabilita automáticamente impidiendo intents fallidos.
 
-### 2.2 Catalogo CRUD y Rotacion de Frases (PhraseCrudRepository)
-- **Operaciones completas:** Permite Crear, Listar, Actualizar y Eliminar plantillas de locucion.
-- **Variables dinámicas:** Admite `{cancion}`, `{artista}`, `{hora}` y `{clima}`.
-- **Algoritmo Anti-repeticion:** Al seleccionar la siguiente frase para el locutor, excluye la ultima frase empleada (`lastUsedPhraseId`), garantizando que dos emisiones consecutivas nunca sean identicas.
+### 2.2 Locución Horaria de Precisión y Erradicación de Duplicidades (GenerateRadioScriptUseCase)
+- **Inspección del minuto exacto:** Cada locución generada evalúa `Calendar.getInstance()` en el instante exacto del disparo:
+  - Minuto 0: "la 1 de la tarde en punto" / "las 2 de la tarde en punto".
+  - Minuto 1: "la 1 y 1 minuto de la tarde" / "las 2 y 1 minuto de la tarde" (sin decir "en punto").
+  - Minuto 15: "la 1 y cuarto de la tarde" / "las 2 y cuarto de la tarde".
+  - Minuto 30: "la 1 y media de la tarde" / "las 2 y media de la tarde".
+  - Otros minutos: "la 1 y N minutos" / "las H y N minutos".
+- **Erradicación del bug "en punto en punto":** Se corrigió la redundancia eliminando de raíz el append estático de "en punto" cuando el minuto es distinto de 00 y saneando las plantillas de SharedPreferences y valores por defecto mediante un filtro de sustitución estricta.
 
-### 2.3 Clima Local Opcional bajo Permiso (LocalWeatherProvider)
-- **Privacidad estricta:** Solo se activa si el usuario enciende el switch de clima y otorga el permiso de ubicacion (`ACCESS_FINE_LOCATION` o `ACCESS_COARSE_LOCATION`).
-- **Degradacion limpia:** Si el permiso no esta concedido, la etiqueta `{clima}` se elimina de forma limpia sin generar errores ni silencios bruscos.
+### 2.3 Motor Multicriterio de Programación de Anuncios (EvaluateHourlyAnnouncementUseCase + RadioPreferences)
+- **Modalidades soportadas:**
+  1. `DEFAULT_TOP_OF_HOUR`: Modo FM por defecto que anuncia cerca de la hora (:00 a :01) al terminar un tema o de forma continua por reloj sin cortar canciones.
+  2. `SONG_COUNT`: Dispara el anuncio tras completarse un conteo fijo de canciones (configurable a 1, 2, 3, 5 u 8 temas).
+  3. `EXACT_TIME_INTERRUPT`: Interrumpe de inmediato la música a la hora exacta aplicando ducking en vivo.
+  4. `CUSTOM_HOURS`: Permite al usuario seleccionar horas específicas fijas del día (ej. 08:00, 12:00, 18:00) mediante chips interactivos.
 
-### 2.4 Integracion de Icono y Assets Visuales
-- Se incorporo `stitch/icon.png` como recurso oficial `@drawable/app_icon` en el manifiesto y como emblema en la barra superior de la cabina.
+### 2.4 Reorganización Visual en Pantalla Principal (RadioMainScreen)
+- La pantalla principal (`Cabina`) se reestructuró en 5 bloques jerárquicos:
+  1. **Primero: Canción actual** (`WazeBasicControlBar` con metadatos, carátula, transport controls y botón de vincular).
+  2. **Segundo: Locución** (`CentralAnnouncerPowerButton` con control maestro de antena, badge de modo y estilo de voz).
+  3. **Tercero: Simulador de cabina** (Actuador de disparo inmediato con vúmetro interactivo).
+  4. **Cuarto: Servicio de 2do plano** (Tarjeta de telemetría con conmutador interactivo segmentado `[ ON ] [ OFF ] [ AUTO ]`).
+  5. **Quinto: Lo técnico de la música y próximo anuncio** (Bento Grid con medidores de ducking, cuenta regresiva y horario).
 
-### 2.5 Ducking Nativo de Audio sin Alterar Volumen General del Sistema (AudioFadeController)
-- **Atenuacion de musica exclusiva:** Se elimino cualquier mutacion de `AudioManager.setStreamVolume` sobre `STREAM_MUSIC` o `STREAM_RING`.
-- **Foco de audio transitorio:** Utiliza `AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)` con atributos `USAGE_ASSISTANCE_NAVIGATION_GUIDANCE` y `CONTENT_TYPE_SPEECH`.
-- **Comportamiento sin pausa:** Con `setWillPauseWhenDucked(false)`, las apps reproductoras externas (Spotify, YouTube Music) atenúan su salida en segundo plano de manera continua (estilo Waze/WhatsApp).
-- **Restauracion instantanea:** Al culminar la locucion o la prueba, se invoca `abandonAudioFocusRequest`, devolviendo la musica a su volumen nominal sin alterar la barra de volumen general del telefono.
+### 2.5 Sincronización Reactiva de Clima y Frases (PhraseCrudRepository)
+- **Desactivación automática:** Al desactivar el interruptor de "Mención de Clima Local", `PhraseCrudRepository.onWeatherSettingChanged(false)` recorre el catálogo y desactiva (`isActive = false`) de manera automática todas las frases que contengan la variable `{clima}`.
+- **Filtro en rotación:** Al seleccionar frases en `getNextNonRepeatingPhrase(weatherEnabled)`, las frases que incluyan clima son ignoradas si el clima está inactivo.
 
-### 2.6 Ondas Reactivas Duales y Conmutacion Dinamica de Icono (SoundWaveRing + CentralAnnouncerPowerButton)
-- **Animacion de sonido unificada:** Los anillos de ondas concentricas reaccionan activamente tanto al hablar el locutor (`isSpeaking == true`) como durante la reproduccion musical en curso (`isPlayingMusic == true`).
-- **Alternancia de icono segun emision:**
-  - Si el locutor habla: Icono de microfono (`Icons.Default.Mic`) con etiqueta "LOCUTOR EN VIVO".
-  - Si suena musica: Icono de ecualizador (`Icons.Default.GraphicEq`) con etiqueta "MÚSICA EN RUTA".
-  - En espera o inactivo: Icono de radio (`Icons.Default.Radio`) o microfono apagado (`Icons.Default.MicOff`) con etiqueta "LOCUTOR LISTO" o "LOCUTOR PAUSADO".
+### 2.6 Mosaico Interactivo de Locutores y Transición Horizontal (RadioSettingsScreen)
+- **Mosaico compacto:** Los 7 presets de radio FM se presentan inicialmente como una fila/mosaico de avatares con íconos vectoriales distintivos.
+- **Transición expandida:** Al pulsar cualquier preset, `AnimatedContent` realiza una animación fluida hacia una tarjeta horizontal de ancho completo con avatar de alto contraste, descripción del timbre, badge "ACTIVO" y botón de prueba rápida en vivo.
 
-### 2.7 Sincronizacion de Metadatos y Caratulas (YouTube Music, Spotify, Apple Music)
-- **Enlace de MediaController:** Filtra dinamicamente las sesiones activas en `MediaSessionManager` mediante el `ComponentName` de `MediaMonitorNotificationListener`. Si el usuario selecciono un reproductor especifico, enlaza prioritariamente su sesion; en modo automatico, prioriza la sesion en estado de reproduccion.
-- **Extraccion exhaustiva de campos:**
-  - Titulo: `METADATA_KEY_TITLE` con fallback a `METADATA_KEY_DISPLAY_TITLE`.
-  - Artista: `METADATA_KEY_ARTIST` con fallback a `METADATA_KEY_ALBUM_ARTIST`.
-  - Album: `METADATA_KEY_ALBUM`.
-  - Caratula: Lectura de `Bitmap` directo via `METADATA_KEY_ALBUM_ART` o `METADATA_KEY_ART`. En reproductores que entregan URI (`METADATA_KEY_ALBUM_ART_URI` o `METADATA_KEY_ART_URI`), decodifica el stream a traves de `ContentResolver`.
-- **Re-registro reactivo de callbacks:** Al cambiar la lista de sesiones activas o la app seleccionada, se liberan callbacks anteriores y se registra `MediaController.Callback` sobre el controlador activo en el hilo principal (`mainHandler`).
-
-### 2.8 Correccion de Desincronizacion de Play/Pausa e Idempotencia
-- **Fuente unica de la verdad:** Se elimino cualquier mutacion especulativa o booleano local invertido al pulsar el boton de reproduccion. El icono en la UI se deriva estrictamente del `PlaybackState.state` notificado por `onPlaybackStateChanged`.
-- **Comandos transportControls precisos:**
-  - Si `playbackState?.state == PlaybackState.STATE_PLAYING`, despacha `transportControls.pause()`.
-  - Si esta en pausa o detenido, despacha `transportControls.play()`.
-  - Solo en caso de ausencia total de `MediaController` se utiliza `dispatchMediaKeyEvent(KEYCODE_MEDIA_PLAY_PAUSE)` como fallback.
-
-### 2.9 Ubicacion Triple del Acceso a Vincular
-- La accion de apertura del selector de reproductores (`ServiceSelectorDialog`) se expone en tres puntos clave:
-  1. **Barra Superior / Cabina:** Chip compacto interactivo "Vincular" junto al badge de estado en el `TopAppBar` y en el strip de telemetria.
-  2. **Tarjeta de Reproduccion Waze:** Chip y cabecera interactiva "VINCULAR" junto al nombre de la aplicacion sonando.
-  3. **Pantalla de Servicio:** Tarjeta dedicada "Servicio de musica vinculado" con boton de accion completa "Vincular / Cambiar app".
+### 2.7 Auditoría de Lectura de Notificaciones en Pestaña de Servicio (RadioServiceScreen)
+- **Alerta prioritaria:** Si `viewModel.isNotificationAccessGranted()` retorna `false`, se despliega una tarjeta destacada en la parte superior del tab de Servicio con llamada a la acción directa hacia `Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS`.
+- **Lista de auditoría:** Muestra en tiempo real el estado verificado de los 4 permisos críticos de Android (MediaSession, Servicio Foreground, POST_NOTIFICATIONS y Foco de Audio).

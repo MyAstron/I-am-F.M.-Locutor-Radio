@@ -11,8 +11,10 @@ import kotlinx.coroutines.launch
 import locutor.cristopher.sic.data.media.MusicServiceOption
 import locutor.cristopher.sic.data.phrases.RadioPhrase
 import locutor.cristopher.sic.domain.model.AnnouncementLog
+import locutor.cristopher.sic.domain.model.AnnouncementScheduleMode
 import locutor.cristopher.sic.domain.model.AnnouncerConfig
 import locutor.cristopher.sic.domain.model.AudioWaveState
+import locutor.cristopher.sic.domain.model.BackgroundServiceMode
 import locutor.cristopher.sic.domain.model.TrackInfo
 import locutor.cristopher.sic.domain.usecase.GenerateRadioScriptUseCase
 import locutor.cristopher.sic.service.RadioEngineCoordinator
@@ -34,6 +36,8 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
     val selectedService: StateFlow<String> = coordinator.mediaRepository.musicLinker.selectedService
     val availableServices: List<MusicServiceOption>
         get() = coordinator.mediaRepository.musicLinker.getDetectedServices()
+    val availableVoices: StateFlow<List<locutor.cristopher.sic.data.voice.SystemVoiceInfo>> =
+        coordinator.voiceEngine.availableVoices
     val isWeatherEnabled: StateFlow<Boolean> = coordinator.weatherProvider.isWeatherEnabled
 
     private val _isServiceSelectorOpen = MutableStateFlow(false)
@@ -104,6 +108,22 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
         coordinator.updateConfig(newConfig)
     }
 
+    fun setBackgroundServiceMode(mode: BackgroundServiceMode) {
+        coordinator.setBackgroundServiceMode(mode)
+    }
+
+    fun setScheduleMode(mode: AnnouncementScheduleMode) {
+        coordinator.preferences.setScheduleMode(mode)
+    }
+
+    fun setSongsInterval(interval: Int) {
+        coordinator.preferences.setSongsInterval(interval)
+    }
+
+    fun setCustomScheduledHours(hours: Set<Int>) {
+        coordinator.preferences.setCustomScheduledHours(hours)
+    }
+
     // CRUD de frases
     fun addPhrase(template: String) {
         coordinator.phraseRepository.addPhrase(template)
@@ -123,11 +143,15 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
 
     // Clima local
     fun setWeatherEnabled(enabled: Boolean) {
-        coordinator.weatherProvider.setWeatherEnabled(enabled)
+        coordinator.setWeatherEnabled(enabled)
     }
 
     fun hasLocationPermission(): Boolean {
         return coordinator.weatherProvider.hasLocationPermission()
+    }
+
+    fun isNotificationAccessGranted(): Boolean {
+        return coordinator.mediaRepository.isNotificationAccessGranted()
     }
 
     fun testVoiceSpeech(sampleText: String) {
@@ -136,7 +160,8 @@ class RadioViewModel(application: Application) : AndroidViewModel(application) {
             coordinator.voiceEngine.speak(
                 text = sampleText,
                 pitch = config.pitch,
-                speechRate = config.speechRate
+                speechRate = config.speechRate,
+                voiceName = config.selectedVoiceName
             )
         }
     }

@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import locutor.cristopher.sic.data.media.MusicServiceLinker
 import locutor.cristopher.sic.data.media.MusicServiceOption
 import locutor.cristopher.sic.ui.theme.CockpitOnPrimary
 import locutor.cristopher.sic.ui.theme.CockpitOnPrimaryContainer
@@ -53,6 +54,11 @@ fun ServiceSelectorDialog(
     onLaunchApp: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val isAutoSelected = selectedPackage == MusicServiceLinker.AUTO_DETECT_PACKAGE ||
+            availableServices.find { it.packageName == selectedPackage }?.isAuto == true
+    val isLocalSelected = selectedPackage == "default.local.player"
+    val canLaunchApp = !isAutoSelected && !isLocalSelected
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CockpitSurfaceContainer,
@@ -89,7 +95,7 @@ fun ServiceSelectorDialog(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Vincula tu reproductor preferido estilo Waze para controlar Anterior, Pausa y Siguiente sin cortes:",
+                    text = "Selecciona tu reproductor preferido instalado para vincular controles y carátula estilo Waze:",
                     style = MaterialTheme.typography.bodySmall,
                     color = CockpitOnSurfaceVariant
                 )
@@ -157,7 +163,7 @@ fun ServiceSelectorDialog(
                                         }
                                         if (option.isAuto) {
                                             Text(
-                                                text = "Controla automáticamente la app sonando",
+                                                text = "Controla automáticamente la app sonando en el teléfono",
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = CockpitOnSurfaceVariant,
                                                 fontSize = 10.sp
@@ -179,27 +185,33 @@ fun ServiceSelectorDialog(
                     }
                 }
 
-                // Botón abrir app
+                // Botón abrir app: Se deshabilita si está seleccionada Detección Automática o Local
                 Button(
                     onClick = {
-                        onLaunchApp()
-                        onDismiss()
+                        if (canLaunchApp) {
+                            onLaunchApp()
+                            onDismiss()
+                        }
                     },
+                    enabled = canLaunchApp,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CockpitSurfaceContainerHigh)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CockpitSurfaceContainerHigh,
+                        disabledContainerColor = CockpitSurfaceContainerLow.copy(alpha = 0.5f)
+                    )
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Launch,
                         contentDescription = null,
-                        tint = CockpitPrimary,
+                        tint = if (canLaunchApp) CockpitPrimary else CockpitOnSurfaceVariant.copy(alpha = 0.4f),
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Abrir reproductor en teléfono",
+                        text = if (isAutoSelected) "Detección automática activa (Sin app fija)" else "Abrir reproductor en teléfono",
                         style = MaterialTheme.typography.labelSmall,
-                        color = CockpitPrimary,
+                        color = if (canLaunchApp) CockpitPrimary else CockpitOnSurfaceVariant.copy(alpha = 0.4f),
                         fontWeight = FontWeight.Bold
                     )
                 }

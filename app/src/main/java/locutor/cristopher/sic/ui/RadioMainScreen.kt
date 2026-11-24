@@ -23,10 +23,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Hearing
-import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -35,18 +36,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import locutor.cristopher.sic.domain.model.AnnouncementScheduleMode
+import locutor.cristopher.sic.domain.model.BackgroundServiceMode
 import locutor.cristopher.sic.ui.components.CentralAnnouncerPowerButton
-import locutor.cristopher.sic.ui.components.ServiceSelectorDialog
 import locutor.cristopher.sic.ui.components.WazeBasicControlBar
+import locutor.cristopher.sic.ui.theme.CockpitOnPrimaryContainer
 import locutor.cristopher.sic.ui.theme.CockpitOnSurface
 import locutor.cristopher.sic.ui.theme.CockpitOnSurfaceVariant
 import locutor.cristopher.sic.ui.theme.CockpitPrimary
@@ -58,7 +58,6 @@ import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHighest
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerLow
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerLowest
 import locutor.cristopher.sic.ui.theme.CockpitTertiary
-import locutor.cristopher.sic.ui.theme.CockpitTertiaryContainer
 
 @Composable
 fun RadioMainScreen(
@@ -72,7 +71,6 @@ fun RadioMainScreen(
     val isDucking by viewModel.duckingActive.collectAsState()
     val nextHourLabel by viewModel.nextBroadcastLabel.collectAsState()
     val countdownSec by viewModel.countdownSeconds.collectAsState()
-    val selectedService by viewModel.selectedService.collectAsState()
 
     val scrollState = rememberScrollState()
 
@@ -84,120 +82,9 @@ fun RadioMainScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. Background Service Telemetry Status Strip
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(CockpitSurfaceContainerLow)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(CockpitPrimaryContainer)
-                )
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            text = "SERVICIO EN 2° PLANO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CockpitPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(999.dp))
-                                .background(CockpitPrimaryContainer.copy(alpha = 0.2f))
-                                .padding(horizontal = 6.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = "ACTIVO",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = CockpitPrimaryContainer,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Text(
-                        text = "Audio focus detector enlazado · Latencia 12ms",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = CockpitOnSurfaceVariant
-                    )
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                // Chip "Vincular" en la barra de telemetría superior de la Cabina
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(CockpitPrimaryContainer.copy(alpha = 0.2f))
-                        .clickable { viewModel.openServiceSelector() }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Link,
-                            contentDescription = "Vincular app de música",
-                            tint = CockpitPrimaryContainer,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = "Vincular",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CockpitPrimaryContainer,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
-                        .background(CockpitSurfaceContainerHigh)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Hearing,
-                            contentDescription = null,
-                            tint = CockpitPrimaryContainer,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "AUTO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CockpitOnSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-
-        // 2. Waze-Style Floating External Music Player Card con selector de servicio
+        // -------------------------------------------------------------
+        // 1. PRIMERO: CANCIÓN ACTUAL (Waze-Style Control Bar + Vincular)
+        // -------------------------------------------------------------
         WazeBasicControlBar(
             trackInfo = currentTrack,
             onPrevious = { viewModel.onPreviousClicked() },
@@ -206,7 +93,9 @@ fun RadioMainScreen(
             onOpenServiceSelector = { viewModel.openServiceSelector() }
         )
 
-        // 3. Center Stage - Tactile Master Locutor Switch Button with Sound Waves
+        // -------------------------------------------------------------
+        // 2. LUEGO: LOCUCIÓN (Control Maestro de Locutor y En Antena)
+        // -------------------------------------------------------------
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
@@ -215,10 +104,17 @@ fun RadioMainScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 20.dp, horizontal = 16.dp),
+                    .padding(vertical = 18.dp, horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Mode Badge
+                // Modo Programado Badge
+                val scheduleBadgeText = when (config.scheduleMode) {
+                    AnnouncementScheduleMode.DEFAULT_TOP_OF_HOUR -> "AUTO: HORA EN PUNTO FM"
+                    AnnouncementScheduleMode.SONG_COUNT -> "CADA ${config.songsInterval} CANCIONES"
+                    AnnouncementScheduleMode.EXACT_TIME_INTERRUPT -> "INTERRUPCIÓN EXACTA :00"
+                    AnnouncementScheduleMode.CUSTOM_HOURS -> "HORARIOS PROGRAMADOS (${config.customScheduledHours.size}H)"
+                }
+
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
@@ -236,15 +132,16 @@ fun RadioMainScreen(
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "AUTO: ANUNCIO EN HORA EN PUNTO",
+                            text = scheduleBadgeText,
                             style = MaterialTheme.typography.labelSmall,
                             color = CockpitOnSurface,
-                            letterSpacing = 0.5.sp
+                            letterSpacing = 0.5.sp,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 val isSpeaking = isExecuting || waveState.isEmitting
                 val isPlayingMusic = currentTrack.isPlaying
@@ -260,12 +157,223 @@ fun RadioMainScreen(
             }
         }
 
-        // 4. Audio Fade & Voice Prioritization Live HUD (Bento Grid)
+        // -------------------------------------------------------------
+        // 3. DESPUÉS: SIMULADOR DE CABINA (Prueba en vivo)
+        // -------------------------------------------------------------
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CockpitSurfaceContainerHigh)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = CockpitPrimaryContainer,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "SIMULADOR DE CABINA",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CockpitOnSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = "Sin esperar el horario",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CockpitOnSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+
+                // Actuador de simulación directa
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CockpitSurfaceContainerHighest)
+                        .clickable(enabled = !isExecuting) {
+                            viewModel.triggerSimulationNow()
+                        }
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(CockpitPrimaryContainer.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayCircle,
+                                    contentDescription = null,
+                                    tint = CockpitPrimaryContainer,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = if (isExecuting) "Transmitiendo locución..." else "Probar locución y fade ahora",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isExecuting) CockpitPrimaryContainer else CockpitOnSurface,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Atenúa música · Lanza locución · Restaura audio",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = CockpitOnSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = CockpitPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 4. LUEGO: SERVICIO DE 2DO PLANO (Interactivo ON / OFF / AUTO)
+        // -------------------------------------------------------------
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CockpitSurfaceContainer)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val indicatorColor = when (config.backgroundServiceMode) {
+                            BackgroundServiceMode.ON -> CockpitPrimaryContainer
+                            BackgroundServiceMode.AUTO -> CockpitTertiary
+                            BackgroundServiceMode.OFF -> CockpitOnSurfaceVariant.copy(alpha = 0.4f)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(indicatorColor)
+                        )
+                        Text(
+                            text = "SERVICIO EN 2° PLANO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CockpitPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Text(
+                        text = "Latencia 12ms",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CockpitOnSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Text(
+                    text = "Controla la persistencia del monitor en segundo plano para detectar Spotify o YouTube Music sin interrupciones:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CockpitOnSurfaceVariant,
+                    fontSize = 11.sp
+                )
+
+                // Segmented Button Interactivo: ON / OFF / AUTO
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CockpitSurfaceContainerLowest)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf(
+                        Triple(BackgroundServiceMode.ON, "ON", "Siempre activo"),
+                        Triple(BackgroundServiceMode.OFF, "OFF", "Detenido"),
+                        Triple(BackgroundServiceMode.AUTO, "AUTO", "Inteligente")
+                    ).forEach { (mode, label, desc) ->
+                        val isSelected = config.backgroundServiceMode == mode
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) CockpitPrimaryContainer else CockpitSurfaceContainerLowest)
+                                .clickable {
+                                    viewModel.setBackgroundServiceMode(mode)
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isSelected) CockpitOnPrimaryContainer else CockpitOnSurface,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = desc,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isSelected) CockpitOnPrimaryContainer.copy(alpha = 0.8f) else CockpitOnSurfaceVariant,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // -------------------------------------------------------------
+        // 5. DE ÚLTIMO: LO TÉCNICO DE LA MÚSICA Y PRÓX ANUNCIO (Bento Grid)
+        // -------------------------------------------------------------
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Channel A: Music Volume with Auto-Duck Meter
+            // Canal A: Nivel Técnico de Música & Ducking
             Card(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(16.dp),
@@ -295,7 +403,7 @@ fun RadioMainScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Graphic Level Meter Bars
+                    // Barras gráficas de nivel de audio
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -353,7 +461,7 @@ fun RadioMainScreen(
                 }
             }
 
-            // Channel B: Next Broadcast Countdown Clock
+            // Canal B: Próximo Anuncio & Cuenta Regresiva
             Card(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(16.dp),
@@ -417,109 +525,6 @@ fun RadioMainScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = CockpitOnSurfaceVariant,
                             fontSize = 11.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        // 5. Instant Test Simulation Cockpit Bar
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = CockpitSurfaceContainerHigh)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = null,
-                            tint = CockpitPrimaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "SIMULADOR DE CABINA",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CockpitOnSurface,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Text(
-                        text = "Sin esperar la hora",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = CockpitOnSurfaceVariant,
-                        fontSize = 11.sp
-                    )
-                }
-
-                // Big Trigger Actuator Button
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(CockpitSurfaceContainerHighest)
-                        .clickable(enabled = !isExecuting) {
-                            viewModel.triggerSimulationNow()
-                        }
-                        .padding(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(CockpitPrimaryContainer.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayCircle,
-                                    contentDescription = null,
-                                    tint = CockpitPrimaryContainer,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = if (isExecuting) "Transmitiendo locución..." else "Probar locución y fade ahora",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = if (isExecuting) CockpitPrimaryContainer else CockpitOnSurface,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Atenúa música · Lanza locución · Restaura audio",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = CockpitOnSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = CockpitPrimaryContainer,
-                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }

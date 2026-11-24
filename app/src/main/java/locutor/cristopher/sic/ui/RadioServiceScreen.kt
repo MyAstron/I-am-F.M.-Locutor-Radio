@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.GraphicEq
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -43,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import locutor.cristopher.sic.domain.model.BackgroundServiceMode
 import locutor.cristopher.sic.ui.theme.CockpitOnPrimary
 import locutor.cristopher.sic.ui.theme.CockpitOnPrimaryContainer
 import locutor.cristopher.sic.ui.theme.CockpitOnSurface
@@ -64,7 +68,9 @@ import locutor.cristopher.sic.ui.theme.CockpitSurface
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainer
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHigh
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHighest
+import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerLow
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerLowest
+import locutor.cristopher.sic.ui.theme.CockpitTertiary
 
 @Composable
 fun RadioServiceScreen(
@@ -74,8 +80,11 @@ fun RadioServiceScreen(
     val uptime by viewModel.uptimeLabel.collectAsState()
     val isDucking by viewModel.duckingActive.collectAsState()
     val currentTrack by viewModel.currentTrack.collectAsState()
+    val config by viewModel.announcerConfig.collectAsState()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+
+    val isNotificationAccessGranted = remember(currentTrack) { viewModel.isNotificationAccessGranted() }
 
     Column(
         modifier = modifier
@@ -85,7 +94,192 @@ fun RadioServiceScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 3. Tarjeta destacada de Servicio de música vinculado estilo Waze
+        // =========================================================================
+        // APARTADO CRÍTICO: PERMISO DE LECTURA DE NOTIFICACIONES MULTIMEDIA
+        // =========================================================================
+        if (!isNotificationAccessGranted) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CockpitPrimaryContainer.copy(alpha = 0.15f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(CockpitPrimaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.NotificationsActive,
+                                contentDescription = null,
+                                tint = CockpitOnPrimaryContainer,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Lectura de Notificaciones Desactivada",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = CockpitPrimaryContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Text(
+                                text = "Para que el locutor lea las canciones de Spotify, YouTube Music y otros reproductores, concede el acceso a notificaciones en Android.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = CockpitOnSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = CockpitPrimaryContainer)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = CockpitOnPrimaryContainer,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "HABILITAR ACCESO A NOTIFICACIONES",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CockpitOnPrimaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // CONTROL MAESTRO DE 2DO PLANO (ON / OFF / AUTO)
+        // =========================================================================
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = CockpitSurfaceContainer)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val indicatorColor = when (config.backgroundServiceMode) {
+                            BackgroundServiceMode.ON -> CockpitPrimaryContainer
+                            BackgroundServiceMode.AUTO -> CockpitTertiary
+                            BackgroundServiceMode.OFF -> CockpitOnSurfaceVariant.copy(alpha = 0.4f)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(indicatorColor)
+                        )
+                        Text(
+                            text = "MODO DE SERVICIO EN SEGUNDO PLANO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CockpitPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = "Configuración Activa",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CockpitOnSurfaceVariant,
+                        fontSize = 11.sp
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(CockpitSurfaceContainerLowest)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf(
+                        Triple(BackgroundServiceMode.ON, "ON", "Siempre activo"),
+                        Triple(BackgroundServiceMode.OFF, "OFF", "Detenido"),
+                        Triple(BackgroundServiceMode.AUTO, "AUTO", "Inteligente")
+                    ).forEach { (mode, label, desc) ->
+                        val isSelected = config.backgroundServiceMode == mode
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) CockpitPrimaryContainer else CockpitSurfaceContainerLowest)
+                                .clickable {
+                                    viewModel.setBackgroundServiceMode(mode)
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isSelected) CockpitOnPrimaryContainer else CockpitOnSurface,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = desc,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isSelected) CockpitOnPrimaryContainer.copy(alpha = 0.8f) else CockpitOnSurfaceVariant,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // =========================================================================
+        // TARJETA DE REPRODUCTOR / APP DE MÚSICA DETECTADA
+        // =========================================================================
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -158,10 +352,8 @@ fun RadioServiceScreen(
                         if (currentTrack.albumArtBitmap != null) {
                             Image(
                                 bitmap = currentTrack.albumArtBitmap!!.asImageBitmap(),
-                                contentDescription = "Carátula de ${currentTrack.title}",
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(10.dp)),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
                         } else {
@@ -169,23 +361,22 @@ fun RadioServiceScreen(
                                 imageVector = Icons.Default.MusicNote,
                                 contentDescription = null,
                                 tint = CockpitPrimary,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = currentTrack.appName,
-                            style = MaterialTheme.typography.headlineSmall,
+                            text = if (currentTrack.hasTrack) currentTrack.title else "Sin pista detectada",
+                            style = MaterialTheme.typography.bodyLarge,
                             color = CockpitOnSurface,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = if (currentTrack.hasTrack) {
-                                if (currentTrack.album.isNotBlank()) "${currentTrack.title} · ${currentTrack.artist} (${currentTrack.album})"
-                                else "${currentTrack.title} · ${currentTrack.artist}"
-                            } else "Esperando señal de reproducción...",
+                            text = if (currentTrack.hasTrack) "${currentTrack.artist} · ${currentTrack.appName}" else "Esperando reproductor multimedia externo",
                             style = MaterialTheme.typography.bodySmall,
                             color = CockpitOnSurfaceVariant,
                             maxLines = 1,
@@ -193,31 +384,12 @@ fun RadioServiceScreen(
                         )
                     }
                 }
-
-                Button(
-                    onClick = { viewModel.openServiceSelector() },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CockpitPrimaryContainer)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Link,
-                        contentDescription = null,
-                        tint = CockpitOnPrimaryContainer,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Vincular / Cambiar app",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CockpitOnPrimaryContainer,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
         }
 
-        // System Health Hero Status
+        // =========================================================================
+        // TELEMETRÍA DE PROCESO Y UPTIME
+        // =========================================================================
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -236,7 +408,7 @@ fun RadioServiceScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Box(
                             modifier = Modifier
@@ -245,7 +417,7 @@ fun RadioServiceScreen(
                                 .background(CockpitPrimaryContainer)
                         )
                         Text(
-                            text = "DAEMON HEARTBEAT OK",
+                            text = "ESTADO DEL NÚCLEO FOREGROUND",
                             style = MaterialTheme.typography.labelSmall,
                             color = CockpitPrimary,
                             fontWeight = FontWeight.Bold
@@ -254,7 +426,7 @@ fun RadioServiceScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(999.dp))
-                            .background(CockpitSurfaceContainerHighest)
+                            .background(CockpitSurfaceContainerLowest)
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -272,7 +444,7 @@ fun RadioServiceScreen(
                     color = CockpitOnSurface
                 )
                 Text(
-                    text = "Canal prioritario fijado en memoria OOM_ADJ_PERSISTENT con wakelock de baja latencia.",
+                    text = "Canal prioritario fijado en memoria OOM_ADJ_PERSISTENT con audio focus detector de baja latencia.",
                     style = MaterialTheme.typography.bodySmall,
                     color = CockpitOnSurfaceVariant
                 )
@@ -367,185 +539,9 @@ fun RadioServiceScreen(
             }
         }
 
-        // Android Notification Drawer Preview
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.NotificationsActive,
-                        contentDescription = null,
-                        tint = CockpitPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "SIMULADOR BARRA DE NOTIFICACIÓN",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = CockpitOnSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Text(
-                    text = "Prioridad Alta",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = CockpitOnSurfaceVariant,
-                    fontSize = 11.sp
-                )
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = CockpitSurfaceContainerLowest)
-            ) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clip(CircleShape)
-                                .background(CockpitPrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Radio,
-                                contentDescription = null,
-                                tint = CockpitOnPrimary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                        Text(
-                            text = "I AM-FM ENGINE",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CockpitOnSurface,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(3.dp)
-                                .clip(CircleShape)
-                                .background(CockpitOnSurfaceVariant)
-                        )
-                        Text(
-                            text = "ahora",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = CockpitOnSurfaceVariant
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "📻 I AM-FM Activo · Modo Radio DJ",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = CockpitOnSurface,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Monitoreando reproducción y hora en punto",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = CockpitPrimary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(999.dp))
-                                        .background(CockpitPrimaryContainer)
-                                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                                ) {
-                                    Text(
-                                        text = "TTS Listo",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = CockpitOnPrimaryContainer,
-                                        fontSize = 9.sp
-                                    )
-                                }
-                                Text(
-                                    text = "Audio Ducking -24dB preparado",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = CockpitOnSurfaceVariant,
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(CockpitSurfaceContainerHighest),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GraphicEq,
-                                contentDescription = null,
-                                tint = CockpitPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    // Quick Action Buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = { viewModel.triggerSimulationNow() },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(999.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CockpitSurfaceContainer)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.RecordVoiceOver,
-                                contentDescription = null,
-                                tint = CockpitPrimary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Hablar Ya",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = CockpitPrimary
-                            )
-                        }
-
-                        Button(
-                            onClick = { viewModel.toggleAnnouncer() },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(999.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = CockpitSurfaceContainer)
-                        ) {
-                            Text(
-                                text = "Suspender",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = CockpitOnSurface
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Permissions Checklist & System Access
+        // =========================================================================
+        // AUDITORÍA DE PERMISOS ANDROID
+        // =========================================================================
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
@@ -569,45 +565,98 @@ fun RadioServiceScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "4/4 CONFIGURADOS",
+                        text = if (isNotificationAccessGranted) "TODOS CONFIGURADOS" else "ATENCIÓN REQUERIDA",
                         style = MaterialTheme.typography.labelSmall,
-                        color = CockpitPrimary,
+                        color = if (isNotificationAccessGranted) CockpitPrimaryContainer else CockpitTertiary,
                         fontWeight = FontWeight.Bold
                     )
                 }
 
-                val permissions = listOf(
-                    "Acceso a Notificaciones (MediaSession)" to "Habilita la lectura de pistas externas",
-                    "Servicio Foreground (MediaPlayback)" to "Mantiene el locutor en segundo plano",
-                    "Notificaciones del Sistema (POST_NOTIFICATIONS)" to "Control visible en barra superior",
-                    "Foco de Audio (MODIFY_AUDIO_SETTINGS)" to "Fade out suave de Spotify/YouTube Music"
-                )
-
-                permissions.forEach { (perm, desc) ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = CockpitPrimaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = perm,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = CockpitOnSurface,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = desc,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = CockpitOnSurfaceVariant
-                            )
+                // Permiso 1: Notificaciones Multimedia
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                            context.startActivity(intent)
                         }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isNotificationAccessGranted) Icons.Default.CheckCircle else Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = if (isNotificationAccessGranted) CockpitPrimaryContainer else CockpitTertiary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Acceso a Notificaciones (MediaSession)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = CockpitOnSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isNotificationAccessGranted) "Habilita la lectura de pistas externas · ACTIVO" else "Toca para conceder acceso en Ajustes · PENDIENTE",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isNotificationAccessGranted) CockpitOnSurfaceVariant else CockpitTertiary
+                        )
+                    }
+                }
+
+                // Permiso 2: Servicio Foreground
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = CockpitPrimaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Servicio Foreground (MediaPlayback)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = CockpitOnSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Mantiene el locutor en segundo plano sin ser eliminado por el OS",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CockpitOnSurfaceVariant
+                        )
+                    }
+                }
+
+                // Permiso 3: Foco de Audio
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = CockpitPrimaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Foco de Audio (AudioManager Fade)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = CockpitOnSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Atenuación suave (ducking) de Spotify y YouTube Music",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CockpitOnSurfaceVariant
+                        )
                     }
                 }
 
@@ -630,7 +679,7 @@ fun RadioServiceScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "ABRIR AJUSTES DE ACCESO A NOTIFICACIONES",
+                        text = "CONFIGURAR ACCESO A NOTIFICACIONES",
                         style = MaterialTheme.typography.labelSmall,
                         color = CockpitPrimary,
                         fontWeight = FontWeight.Bold

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FormatQuote
@@ -61,10 +62,8 @@ import locutor.cristopher.sic.ui.theme.CockpitPrimary
 import locutor.cristopher.sic.ui.theme.CockpitPrimaryContainer
 import locutor.cristopher.sic.ui.theme.CockpitSecondary
 import locutor.cristopher.sic.ui.theme.CockpitSurface
-import locutor.cristopher.sic.ui.theme.CockpitSurfaceBright
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainer
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHigh
-import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerHighest
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerLow
 import locutor.cristopher.sic.ui.theme.CockpitSurfaceContainerLowest
 import locutor.cristopher.sic.ui.theme.CockpitTertiary
@@ -157,7 +156,7 @@ fun RadioPhrasesCrudScreen(
                 }
             }
 
-            // Clima Local Opcional Toggle Bar
+            // Clima Local Opcional Toggle Bar con Auto-Desactivación de frases
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(14.dp),
@@ -179,13 +178,13 @@ fun RadioPhrasesCrudScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(CockpitSecondary.copy(alpha = 0.15f)),
+                                .background(if (isWeatherEnabled) CockpitSecondary.copy(alpha = 0.15f) else CockpitSurfaceContainerHigh),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Cloud,
+                                imageVector = if (isWeatherEnabled) Icons.Default.Cloud else Icons.Default.CloudOff,
                                 contentDescription = null,
-                                tint = CockpitSecondary,
+                                tint = if (isWeatherEnabled) CockpitSecondary else CockpitOnSurfaceVariant,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -197,7 +196,11 @@ fun RadioPhrasesCrudScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = if (isWeatherEnabled) "Inyecta {clima} en el boletín horario" else "Desactivado (sin acceso a ubicación)",
+                                text = if (isWeatherEnabled) {
+                                    "Inyecta {clima} en el boletín horario"
+                                } else {
+                                    "Desactivado (Frases con {clima} pausadas automáticamente)"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = CockpitOnSurfaceVariant
                             )
@@ -225,6 +228,9 @@ fun RadioPhrasesCrudScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(phrases, key = { it.id }) { phrase ->
+                    val hasWeatherTag = phrase.template.contains("{clima}", ignoreCase = true)
+                    val isPausedByWeather = hasWeatherTag && !isWeatherEnabled
+
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -258,6 +264,22 @@ fun RadioPhrasesCrudScreen(
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    if (isPausedByWeather) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(CockpitTertiary.copy(alpha = 0.2f))
+                                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                text = "CLIMA APAGADO",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = CockpitTertiary,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                 }
 
                                 Row(
@@ -270,9 +292,10 @@ fun RadioPhrasesCrudScreen(
                                             viewModel.testVoiceSpeech(
                                                 phrase.template
                                                     .replace("{cancion}", "Blinding Lights")
+                                                    .replace("{canción}", "Blinding Lights")
                                                     .replace("{artista}", "The Weeknd")
                                                     .replace("{hora}", "las 2 de la tarde en punto")
-                                                    .replace("{clima}", "Tenemos 22 grados con cielo despejado. ")
+                                                    .replace("{clima}", if (isWeatherEnabled) "Tenemos 22 grados con cielo despejado. " else "")
                                             )
                                         },
                                         modifier = Modifier.size(32.dp)

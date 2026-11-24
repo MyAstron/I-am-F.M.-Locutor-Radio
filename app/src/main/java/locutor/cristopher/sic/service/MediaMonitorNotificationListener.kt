@@ -1,6 +1,12 @@
 package locutor.cristopher.sic.service
 
+import android.app.Notification
 import android.content.ComponentName
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Icon
+import android.media.session.MediaController
+import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
 import android.os.Build
 import android.service.notification.NotificationListenerService
@@ -19,7 +25,7 @@ class MediaMonitorNotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         super.onListenerConnected()
-        Log.d("MediaMonitorListener", "NotificationListenerService conectado.")
+        Log.d("MediaMonitorListener", "NotificationListenerService conectado con éxito.")
         try {
             sessionManager = getSystemService(MEDIA_SESSION_SERVICE) as? MediaSessionManager
             val component = ComponentName(this, MediaMonitorNotificationListener::class.java)
@@ -42,10 +48,79 @@ class MediaMonitorNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        // Monitoreo pasivo
+        if (sbn == null) return
+        val notification = sbn.notification ?: return
+        val extras = notification.extras ?: return
+
+        val pkg = sbn.packageName ?: return
+        if (pkg == packageName) return // Ignorar nuestras propias notificaciones
+
+        // 1. Extraer token de MediaSession si es una notificación multimedia
+        val token = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                extras.getParcelable(Notification.EXTRA_MEDIA_SESSION, MediaSession.Token::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                extras.getParcelable(Notification.EXTRA_MEDIA_SESSION)
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+        var controller: MediaController? = null
+        if (token != null) {
+            try {
+                controller = MediaController(this, token)
+            } catch (e: Exception) {
+                Log.w("MediaMonitorListener", "No se pudo instanciar MediaController desde token de $pkg", e)
+            }
+        }
+
+        // 2. Extraer metadatos visibles desde los extras de la notificación
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+
+        val isMediaNotification = token != null ||
+                notification.category == Notification.CATEGORY_TRANSPORT ||
+                extras.containsKey(Notification.EXTRA_MEDIA_SESSION)
+
+        if (isMediaNotification && !title.isNullOrBlank()) {
+            val largeIconBitmap: Bitmap? = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    extras.getParcelable(Notification.EXTRA_LARGE_ICON, Bitmap::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    extras.getParcelable(Notification.EXTRA_LARGE_ICON) as? Bitmap
+                }
+            } catch (_: Exception) {
+                try {
+                    val icon = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        extras.getParcelable(Notification.EXTRA_LARGE_ICON, Icon::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        extras.getParcelable(Notification.EXTRA_LARGE_ICON) as? Icon
+                    }
+                    val drawable = icon?.loadDrawable(this)
+                    (drawable as? BitmapDrawable)?.bitmap
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            RadioEngineCoordinator.getInstance(this).mediaRepository.updateFromNotification(
+                packageName = pkg,
+                title = title,
+                artist = text ?: "",
+                album = subText ?: "",
+                artworkBitmap = largeIconBitmap,
+                controller = controller
+            )
+        }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        // Monitoreo pasivo
+        if (sbn == null) return
+        RadioEngineCoordinator.getInstance(this).mediaRepository.onNotificationRemoved(sbn.packageName)
     }
 }
